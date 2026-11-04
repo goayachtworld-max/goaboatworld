@@ -1,0 +1,88 @@
+import { neon } from '@neondatabase/serverless';
+
+const DATABASE_URL = "postgresql://neondb_owner:npg_ReCndmH6gY1c@ep-sparkling-rice-b4kk51wi-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const sql = neon(DATABASE_URL);
+
+const privacyPolicy = `**Privacy Policy for Goaboatworld**
+
+Last Updated: November 4, 2026
+
+At Goaboatworld, we are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, and safeguard your data when you visit our website or use our yacht charter services in Goa, India.
+
+**1. Information We Collect**
+We collect information that helps us provide a premium sailing experience:
+*   **Identity & Contact Data:** Name, email address, phone number, and communication preferences.
+*   **Booking & Vessel Data:** Details about your preferred yacht, sailing dates, guest count, and special requirements for your experience.
+*   **Technical Data:** IP address, browser type, operating system, and usage patterns on our website (collected via cookies).
+*   **Communication Logs:** Records of your inquiries and our interactions via email, WhatsApp, or phone.
+
+**2. How We Collect Your Data**
+*   **Direct Interaction:** When you fill out a booking inquiry form, contact us via WhatsApp/email, or create an account.
+*   **Automated Technologies:** Through cookies and similar technologies as you navigate our site.
+*   **Third Parties:** Information may be received from business partners or publicly available sources where legally permissible.
+
+**3. Purpose of Data Processing**
+We use your information to:
+*   Process and manage your yacht bookings and inquiries.
+*   Provide personalized service and communicate trip details.
+*   Improve our website and user experience.
+*   Ensure the safety and security of our guests and crew.
+*   Comply with Indian legal and regulatory obligations.
+
+**4. Legal Basis for Processing**
+We process your data based on:
+*   **Consent:** When you explicitly agree to provide your data.
+*   **Contractual Necessity:** To fulfill our agreement to provide yacht services.
+*   **Legal Obligation:** To comply with laws, such as tax regulations or safety mandates.
+*   **Legitimate Interests:** To maintain and improve our business operations.
+
+**5. Data Sharing & Transfers**
+We do not sell your data. We may share information with:
+*   **Service Providers:** IT hosting, payment processors, and professional advisers (legal/financial).
+*   **Regulatory Authorities:** When required by Indian law or court orders.
+*   **Internal Staff:** Only authorized personnel involved in your booking.
+
+**6. Data Retention**
+We retain your personal data only for as long as is reasonably necessary to fulfill the purposes for which it was collected, including legal, accounting, or reporting requirements.
+
+**7. Security**
+We implement robust technical and organizational measures to protect your data from unauthorized access, loss, or misuse.
+
+**8. Your Rights (Under Indian Law)**
+In accordance with the Digital Personal Data Protection Act (DPDPA) and other applicable laws, you have the right to:
+*   **Access:** Request a copy of the personal data we hold about you.
+*   **Correction:** Ask us to correct inaccurate or incomplete information.
+*   **Erasure:** Request the deletion of your data when it is no longer needed.
+*   **Withdrawal:** Withdraw your consent for data processing at any time.
+
+**9. Cookies**
+Our website uses cookies to enhance your experience. You can manage cookie preferences through your browser settings.
+
+**10. Children's Privacy**
+Our services are not intended for children. We do not knowingly collect data from individuals under the age of 18 without parental consent.
+
+**11. Third-Party Links**
+Our site may contain links to external websites. We are not responsible for the privacy practices of those third parties.
+
+**12. Updates to This Policy**
+We may update this policy periodically. Any changes will be posted on this page with a revised "Last Updated" date.
+
+**13. Contact Us**
+For any privacy-related queries or to exercise your rights, please contact us at:
+Email: hello@goaboatworld.com
+Location: Panjim, Goa, India`;
+
+async function updatePrivacyPolicy() {
+  try {
+    await sql`
+      INSERT INTO site_config (key, value, updated_at)
+      VALUES ('privacy_policy_content', ${privacyPolicy}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = ${privacyPolicy}, updated_at = NOW()
+    `;
+    console.log('Privacy policy updated successfully.');
+  } catch (e) {
+    console.error('Error updating privacy policy:', e);
+  }
+}
+
+updatePrivacyPolicy();
