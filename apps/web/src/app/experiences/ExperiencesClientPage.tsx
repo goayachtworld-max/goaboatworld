@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface ExpItem {
   id: number;
@@ -87,6 +87,13 @@ export default function ExperiencesPage() {
   return (
     <div className="pt-28 pb-24 bg-white min-h-screen">
       <div className="max-w-5xl mx-auto px-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-gray-500 hover:text-[#1A3C35] text-[14px] font-medium transition-colors group mb-8"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Home
+        </Link>
+
         {/* Header */}
         <div className="text-center mb-16">
           <p className="text-[#3D9B7D] font-bold uppercase tracking-widest text-[11px] mb-4">

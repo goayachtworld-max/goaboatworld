@@ -1,11 +1,20 @@
 import React from 'react';
 import Link from 'next/link';
-import { Shield, Heart, Award } from 'lucide-react';
+import { Shield, Heart, Award, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function AboutPage() {
   return (
     <div className="pt-32 pb-24 bg-white min-h-screen">
+      <div className="max-w-7xl mx-auto px-6 mb-32">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-gray-500 hover:text-[#1A3C35] text-[14px] font-medium transition-colors group mb-8"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Home
+        </Link>
+      </div>
+
       {/* --- VISION --- */}
       <section className="max-w-7xl mx-auto px-6 mb-32">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
@@ -28,14 +37,14 @@ export default function AboutPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <img
-              src="https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?q=80&w=2070&auto=format&fit=crop"
+              src="/uploads/about-yacht-view.jpg"
               className="w-full h-80 object-cover mt-12 shadow-lg"
               alt="Yacht View"
             />
             <img
-              src="https://images.unsplash.com/photo-1540959733332-eab4deabeeac?q=80&w=2094&auto=format&fit=crop"
+              src="/uploads/about-yacht-interior.jpg"
               className="w-full h-80 object-cover shadow-lg"
-              alt="Goa Waters"
+              alt="Yacht Interior"
             />
           </div>
         </div>

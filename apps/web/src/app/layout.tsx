@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import BackToTop from '@/components/BackToTop';
 import { Providers } from '@/app/providers';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export const metadata: Metadata = {
   title: 'Goaboatworld | Private Yacht Experiences & Boat Charters in Goa',
@@ -18,11 +19,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="font-manrope antialiased bg-white text-[#17212B]">
         <Providers>
-          <Navbar />
-          <main>{children}</main>
-          <Footer />
-          <BackToTop />
-          <FloatingWhatsApp />
+          <LoadingScreen>
+            <Navbar />
+            <main>{children}</main>
+            <Footer />
+            <BackToTop />
+            <FloatingWhatsApp />
+          </LoadingScreen>
         </Providers>
       </body>
     </html>

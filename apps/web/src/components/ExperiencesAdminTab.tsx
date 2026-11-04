@@ -56,7 +56,11 @@ function ImageListEditor({
       return;
     }
     const url = await upload(file);
-    if (url) onChange([...images, url]);
+    if (url) {
+      onChange([...images, url]);
+    } else {
+      toast.error('Upload failed. Please try again.');
+    }
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -202,14 +206,12 @@ export default function ExperiencesAdminTab({ adminPw, upload, uploading }: { ad
                 placeholder="Describe the vibe and what to expect..."
               />
             </Field>
-            <Field label="Photos" hint="Up to 5 photos. First photo is used as the experience tile.">
-              <ImageListEditor
-                images={editing.images ?? []}
-                onChange={(v) => setEditing({ ...editing, images: v })}
-                upload={upload}
-                uploading={uploading}
-              />
-            </Field>
+            <ImageListEditor
+              images={editing.images ?? []}
+              onChange={(v) => setEditing({ ...editing, images: v })}
+              upload={upload}
+              uploading={uploading}
+            />
             <Field label="Sort Order">
               <input
                 type="number"

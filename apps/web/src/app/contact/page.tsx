@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
@@ -66,7 +66,7 @@ const GoogleIcon = () => (
 export default function ContactPage() {
   const today = new Date();
   const [cfg, setCfg] = useState<Record<string, string>>({
-    phone: '+91 [Phone Placeholder]',
+    phone: '',
     whatsapp_number: '919876543210',
     contact_email: 'hello@goaboatworld.com',
     address: 'Panjim Jetty, Goa, India',
@@ -135,6 +135,12 @@ export default function ContactPage() {
   return (
     <div className="pt-32 pb-24 bg-white min-h-screen">
       <div className="max-w-7xl mx-auto px-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-gray-500 hover:text-[#1A3C35] text-[14px] font-medium transition-colors group mb-8"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Home
+        </Link>
         <div className="text-center mb-20">
           <p className="text-[#3D9B7D] font-bold uppercase tracking-widest text-xs mb-4">
             Get in Touch

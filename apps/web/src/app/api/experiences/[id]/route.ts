@@ -17,13 +17,13 @@ export async function PUT(
 
     await sql`
       UPDATE experiences
-      SET title = ${title},
-          description = ${description},
-          images = ${JSON.stringify(images)},
-          sort_order = ${sort_order},
-          is_active = ${is_active},
-          keywords = ${keywords}
-      WHERE id = ${id}
+      SET title = ${title || ''},
+          description = ${description || ''},
+          images = ${JSON.stringify(images || [])},
+          sort_order = ${sort_order ?? 0},
+          is_active = ${is_active ?? true},
+          keywords = ${keywords || ''}
+      WHERE id = ${id}::int
     `;
     return Response.json({ success: true });
   } catch (error) {
@@ -47,7 +47,7 @@ export async function DELETE(
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await sql`DELETE FROM experiences WHERE id = ${id}`;
+    await sql`DELETE FROM experiences WHERE id = ${id}::int`;
     return Response.json({ success: true });
   } catch (error) {
     console.error('Delete experience error:', error);
