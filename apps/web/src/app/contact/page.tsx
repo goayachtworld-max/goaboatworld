@@ -8,6 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import ReviewSlider from '@/components/ReviewSlider';
 
 const InstagramIcon = () => (
   <svg
@@ -267,7 +268,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold text-[#1A3C35] mb-1.5">
-                    Email <span className="text-gray-400 font-normal">(optional)</span>
+                    Email <span className="text-gray-400 font-normal normal-case">(optional)</span>
                   </label>
                   <input
                     type="email"
@@ -398,6 +399,8 @@ export default function ContactPage() {
             )}
           </div>
         </div>
+
+        <ReviewSlider googleReviewUrl={cfg.google_url} />
       </div>
 
       <div className="mt-32 h-[300px] w-full bg-[#F0F4F2] flex items-center justify-center border-y border-[#D0E8DF]">

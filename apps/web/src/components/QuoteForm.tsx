@@ -261,7 +261,7 @@ export default function QuoteForm({
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center justify-center gap-2.5 bg-[#1A3C35] hover:bg-[#2A6655] text-white rounded-2xl h-14 text-sm sm:text-[15px] font-bold shadow-lg transition-all duration-300 disabled:opacity-50 bms-btn-press"
+            className="flex items-center justify-center gap-2.5 bg-[#1A3C35] hover:bg-[#2A6655] text-white rounded-2xl h-14 px-12 text-sm sm:text-[15px] font-bold shadow-lg transition-all duration-300 disabled:opacity-50 bms-btn-press"
           >
             {submitting ? 'Sending...' : 'Send Inquiry'}
           </button>

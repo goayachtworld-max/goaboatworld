@@ -13,6 +13,8 @@ import {
   LayoutGrid,
   Inbox,
   Upload,
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import useUpload from '@/utils/useUpload';
@@ -21,60 +23,9 @@ import ExperiencesAdminTab from '@/components/ExperiencesAdminTab';
 import SEOContentTab from '@/components/SEOContentTab';
 import SafeDate from '@/components/SafeDate';
 import { Switch } from '@/components/ui/switch';
-
-/* ──────────────────────────────────────────────────────────────────
-   Types
-────────────────────────────────────────────────────────────────── */
-interface Amenity {
-  id: number;
-  name: string;
-  description: string;
-  icon: string;
-  enabled: boolean;
-  sort_order: number;
-}
-interface Inquiry {
-  id: number;
-  name: string;
-  phone: string;
-  email: string;
-  date: string;
-  yacht_id: string;
-  preferred_time: string;
-  adults: number;
-  kids: number;
-  additional_notes: string;
-  hours: string;
-  num_people: number;
-  occasion: string;
-  created_at: string;
-  status?: 'pending' | 'completed';
-}
-interface YachtDB {
-  id: string;
-  name: string;
-  description: string;
-  why_choose: string;
-  type: string;
-  type_id: number;
-  category_id: number;
-  is_featured: boolean;
-  capacity: number;
-  duration: string;
-  sailing_price: number;
-  sailing_price_2hr: number;
-  anchorage_price: number;
-  banner_image: string;
-  images: string[];
-  inclusions: string[];
-  exclusions: string[];
-  best_for: string[];
-  promo_label: string;
-  reel_url: string;
-  live_video_url: string;
-  is_active: boolean;
-  sort_order: number;
-}
+import { Field, FormattedTextArea, TagListEditor, ImageListEditor, Row, inputCls } from '@/components/AdminUI';
+import YachtEditor from '@/components/YachtEditor';
+import { Amenity, Inquiry, YachtDB } from '@/types/admin';
 
 const BLANK_YACHT: Partial<YachtDB> = {
   name: '',
@@ -102,295 +53,27 @@ const BLANK_YACHT: Partial<YachtDB> = {
 };
 
 /* ──────────────────────────────────────────────────────────────────
-   Small building blocks
-────────────────────────────────────────────────────────────────── */
-
-function Field({
-  label,
-  children,
-  hint,
-}: {
-  label: string;
-  children: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <label className="block text-[12px] font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
-        {label}
-      </label>
-      {children}
-      {hint && <p className="text-[11px] text-gray-400 mt-1">{hint}</p>}
-    </div>
-  );
-}
-
-const inputCls =
-  'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-[14px] text-gray-900 focus:outline-none focus:border-[#3D9B7D] focus:ring-2 focus:ring-[#3D9B7D]/10 transition-colors bg-white';
-
-function FormattedTextArea({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <Field label={label}>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={inputCls}
-        rows={4}
-      />
-    </Field>
-  );
-}
-
-
-function TagListEditor({
-  label,
-  items,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  items: string[];
-  onChange: (v: string[]) => void;
-  placeholder?: string;
-}) {
-  return (
-    <Field label={label}>
-      <div className="space-y-2">
-        {items.map((item, i) => (
-          <div key={i} className="flex gap-2">
-            <input
-              value={item}
-              onChange={(e) => {
-                const next = [...items];
-                next[i] = e.target.value;
-                onChange(next);
-              }}
-              placeholder={placeholder}
-              className={inputCls}
-            />
-            <button
-              type="button"
-              onClick={() => onChange(items.filter((_, j) => j !== i))}
-              className="w-10 shrink-0 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 transition-colors"
-              aria-label={`Remove item ${i + 1}`}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() => onChange([...items, ''])}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-[#3D9B7D] hover:text-[#2A6655] transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Add item
-        </button>
-      </div>
-    </Field>
-  );
-}
-
-function ImageListEditor({
-  images,
-  onChange,
-  upload,
-  uploading,
-}: {
-  images: string[];
-  onChange: (v: string[]) => void;
-  upload: (f: File) => Promise<string | null>;
-  uploading: boolean;
-}) {
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = await upload(file);
-    if (url) onChange([...images, url]);
-    if (fileRef.current) fileRef.current.value = '';
-  };
-
-  return (
-    <Field label={`Photos (${images.length})`} hint="First photo is used as the card image.">
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-        {images.map((src, i) => (
-          <div
-            key={i}
-            className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
-          >
-            <img src={src} alt="" className="w-full h-full object-cover" />
-            {i === 0 && (
-              <span className="absolute top-1.5 left-1.5 bg-[#1A3C35] text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                Cover
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => onChange(images.filter((_, j) => j !== i))}
-              className="absolute top-1.5 right-1.5 w-6 h-6 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              aria-label="Remove photo"
-            >
-              <X className="w-3.5 h-3.5 text-gray-700" />
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:border-[#3D9B7D] hover:text-[#3D9B7D] transition-colors"
-        >
-          <Upload className="w-5 h-5" />
-          <span className="text-[11px] font-semibold">{uploading ? 'Uploading…' : 'Upload'}</span>
-        </button>
-      </div>
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-    </Field>
-  );
-}
-
-function Row({
-  title,
-  description,
-  checked,
-  onChange,
-}: {
-  title: string;
-  description?: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3 border-b border-gray-100 last:border-0">
-      <div>
-        <p className="text-[14px] font-semibold text-gray-900">{title}</p>
-        {description && <p className="text-[12px] text-gray-400 mt-0.5">{description}</p>}
-      </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Amenities editor (per yacht)
-────────────────────────────────────────────────────────────────── */
-function AmenitiesEditor({
-  yachtId,
-  adminPw,
-  amenities,
-  setAmenities,
-}: {
-  yachtId: string;
-  adminPw: string;
-  amenities: Amenity[];
-  setAmenities: (a: Amenity[]) => void;
-}) {
-  const tempIdRef = useRef(-1);
-
-  const addAmenity = () => {
-    const id = tempIdRef.current;
-    tempIdRef.current -= 1;
-    setAmenities([
-      ...amenities,
-      { id, name: '', description: '', icon: 'Check', enabled: true, sort_order: amenities.length },
-    ]);
-  };
-
-  const update = (id: number, patch: Partial<Amenity>) => {
-    setAmenities(amenities.map((a) => (a.id === id ? { ...a, ...patch } : a)));
-  };
-
-  return (
-    <div className="space-y-3">
-      {amenities.length === 0 && (
-        <p className="text-[13px] text-gray-400 py-4 text-center">
-          No amenities yet. Add icons like capacity, AC, music, captain.
-        </p>
-      )}
-      {amenities.map((a) => (
-        <div
-          key={a.id}
-          className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
-            a.enabled ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-60'
-          }`}
-        >
-          <input
-            value={a.icon}
-            onChange={(e) => update(a.id, { icon: e.target.value })}
-            placeholder="Icon"
-            className="w-16 shrink-0 border border-gray-200 rounded-lg px-2 py-2 text-[13px] text-center focus:outline-none focus:border-[#3D9B7D]"
-          />
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <input
-              value={a.name}
-              onChange={(e) => update(a.id, { name: e.target.value })}
-              placeholder="Amenity name (e.g. AC, Captain)"
-              className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold focus:outline-none focus:border-[#3D9B7D]"
-            />
-            <input
-              value={a.description}
-              onChange={(e) => update(a.id, { description: e.target.value })}
-              placeholder="Short label (e.g. Fully Air Conditioned)"
-              className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] text-gray-500 focus:outline-none focus:border-[#3D9B7D]"
-            />
-          </div>
-          <Switch checked={a.enabled} onCheckedChange={(v) => update(a.id, { enabled: v })} />
-          <button
-            type="button"
-            onClick={async () => {
-              setAmenities(amenities.filter((x) => x.id !== a.id));
-              if (a.id > 0 && yachtId) {
-                await fetch(`/api/yacht-amenities/${yachtId}`, {
-                  method: 'DELETE',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ adminPassword: adminPw, id: a.id }),
-                });
-              }
-            }}
-            className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 transition-colors"
-            aria-label="Delete amenity"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={addAmenity}
-        className="flex items-center gap-1.5 text-[13px] font-semibold text-[#3D9B7D] hover:text-[#2A6655] transition-colors"
-      >
-        <Plus className="w-4 h-4" /> Add amenity
-      </button>
-    </div>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Generic List Manager (for Categories, Types, Occasions)
+   List Manager with Expand Mode
 ────────────────────────────────────────────────────────────────── */
 function ListManager({
   title,
   apiEndpoint,
   adminPw,
   onRefresh,
+  type: itemType,
 }: {
   title: string;
   apiEndpoint: string;
   adminPw: string;
   onRefresh: () => void;
+  type: 'category' | 'type' | 'occasion';
 }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [linkedYachts, setLinkedYachts] = useState<YachtDB[]>([]);
+  const [loadingYachts, setLoadingYachts] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -407,6 +90,27 @@ function ListManager({
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  const toggleExpand = async (id: number) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    setLoadingYachts(true);
+    try {
+      const params = new URLSearchParams();
+      params.append(itemType, id.toString());
+      const res = await fetch(`/api/yachts-master?${params.toString()}`);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.yachts || [];
+      setLinkedYachts(list);
+    } catch {
+      toast.error('Failed to load linked yachts');
+    } finally {
+      setLoadingYachts(false);
+    }
+  };
 
   const save = async (item: any) => {
     try {
@@ -509,33 +213,64 @@ function ListManager({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors"
+              className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-[12px] font-bold text-gray-400 w-6">{item.sort_order}</span>
-                <p className="font-bold text-gray-900">{item.name}</p>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    item.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  {item.is_active ? 'Active' : 'Hidden'}
-                </span>
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleExpand(item.id)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition-colors"
+                  >
+                    {expandedId === item.id ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                  <span className="text-[12px] font-bold text-gray-400 w-6">{item.sort_order}</span>
+                  <p className="font-bold text-gray-900">{item.name}</p>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      item.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'
+                    }`}
+                  >
+                    {item.is_active ? 'Active' : 'Hidden'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditing(item)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#3D9B7D] hover:bg-gray-50 transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => remove(item.id)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditing(item)}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#3D9B7D] hover:bg-gray-50 transition-colors"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => remove(item.id)}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+              {expandedId === item.id && (
+                <div className="px-4 pb-4 pt-0 border-t border-gray-50 bg-gray-50/50">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 mt-3">Linked Yachts</p>
+                  {loadingYachts ? (
+                    <div className="space-y-2">
+                      {[1, 2].map(i => <div key={i} className="h-10 bg-gray-200 rounded-lg animate-pulse" />)}
+                    </div>
+                  ) : linkedYachts.length === 0 ? (
+                    <p className="text-[13px] text-gray-400 italic">No yachts linked to this {itemType}.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {linkedYachts.map(y => (
+                        <div key={y.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200 text-[13px] text-gray-700">
+                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                            <Ship className="w-3 h-3 text-gray-400" />
+                          </div>
+                          <span className="truncate font-medium">{y.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -543,24 +278,41 @@ function ListManager({
     </div>
   );
 }
-const CONTENT_FIELDS: { key: string; label: string; textarea?: boolean }[] = [
-  { key: 'hero_banner_url', label: 'Hero Banner Image URL' },
-  { key: 'hero_video_url', label: 'Hero Video URL (Direct Link/YouTube)' },
-  { key: 'hero_headline', label: 'Hero Headline' },
-  { key: 'hero_subtext', label: 'Hero Subtext', textarea: true },
-  { key: 'experiences_section_title', label: 'Experiences Section Title' },
-  { key: 'whatsapp_number', label: 'WhatsApp Number' },
-  { key: 'contact_email', label: 'Contact Email' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'address', label: 'Address' },
-  { key: 'business_hours', label: 'Business Hours' },
-  { key: 'instagram_url', label: 'Instagram URL' },
-  { key: 'facebook_url', label: 'Facebook URL' },
-  { key: 'youtube_url', label: 'YouTube URL' },
-  { key: 'terms_conditions_content', label: 'Terms & Conditions Content', textarea: true },
-  { key: 'privacy_policy_content', label: 'Privacy Policy Content', textarea: true },
-  { key: 'cancellation_refund_policy_content', label: 'Cancellation & Refund Policy Content', textarea: true },
-];
+
+function TypesManager({ adminPw, onRefresh }: { adminPw: string; onRefresh: () => void }) {
+  const [activeType, setActiveType] = useState<'category' | 'type' | 'occasion'>('category');
+
+  const typeConfigs = {
+    category: { title: 'Yacht Categories', endpoint: '/api/yacht-categories' },
+    type: { title: 'Yacht Types', endpoint: '/api/yacht-types' },
+    occasion: { title: 'Yacht Occasions', endpoint: '/api/yacht-occasions' },
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex p-1 bg-gray-100 rounded-xl w-fit">
+        {(['category', 'type', 'occasion'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setActiveType(t)}
+            className={`px-4 py-2 rounded-lg text-[13px] font-semibold transition-all ${
+              activeType === t ? 'bg-white text-[#1A3C35] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {typeConfigs[t].title.replace('Yacht ', '').replace('s', '')}
+          </button>
+        ))}
+      </div>
+      <ListManager
+        title={typeConfigs[activeType].title}
+        apiEndpoint={typeConfigs[activeType].endpoint}
+        adminPw={adminPw}
+        onRefresh={onRefresh}
+        type={activeType}
+      />
+    </div>
+  );
+}
 
 function ContentTab({
   adminPw,
@@ -625,21 +377,23 @@ function ContentTab({
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Main admin page
-────────────────────────────────────────────────────────────────── */
-type Tab = 'yachts' | 'inquiries' | 'content' | 'gallery' | 'experiences' | 'seo' | 'categories' | 'types' | 'occasions';
-
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'inquiries', label: 'Inquiries', icon: <Inbox className="w-4 h-4" /> },
-  { id: 'content', label: 'Content', icon: <LayoutGrid className="w-4 h-4" /> },
-  { id: 'gallery', label: 'Gallery', icon: <ImageIcon className="w-4 h-4" /> },
-  { id: 'experiences', label: 'Experiences', icon: <LayoutGrid className="w-4 h-4" /> },
-  { id: 'yachts', label: 'Yachts', icon: <Ship className="w-4 h-4" /> },
-  { id: 'categories', label: 'Categories', icon: <LayoutGrid className="w-4 h-4" /> },
-  { id: 'types', label: 'Types', icon: <LayoutGrid className="w-4 h-4" /> },
-  { id: 'occasions', label: 'Occasions', icon: <LayoutGrid className="w-4 h-4" /> },
-  { id: 'seo', label: 'SEO Content', icon: <LayoutGrid className="w-4 h-4" /> },
+const CONTENT_FIELDS: { key: string; label: string; textarea?: boolean }[] = [
+  { key: 'hero_banner_url', label: 'Hero Banner Image URL' },
+  { key: 'hero_video_url', label: 'Hero Video URL (Direct Link/YouTube)' },
+  { key: 'hero_headline', label: 'Hero Headline' },
+  { key: 'hero_subtext', label: 'Hero Subtext', textarea: true },
+  { key: 'experiences_section_title', label: 'Experiences Section Title' },
+  { key: 'whatsapp_number', label: 'WhatsApp Number' },
+  { key: 'contact_email', label: 'Contact Email' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'address', label: 'Address' },
+  { key: 'business_hours', label: 'Business Hours' },
+  { key: 'instagram_url', label: 'Instagram URL' },
+  { key: 'facebook_url', label: 'Facebook URL' },
+  { key: 'youtube_url', label: 'YouTube URL' },
+  { key: 'terms_conditions_content', label: 'Terms & Conditions Content', textarea: true },
+  { key: 'privacy_policy_content', label: 'Privacy Policy Content', textarea: true },
+  { key: 'cancellation_refund_policy_content', label: 'Cancellation & Refund Policy Content', textarea: true },
 ];
 
 export default function AdminPage() {
@@ -654,14 +408,8 @@ export default function AdminPage() {
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
-  /* Filter Lists */
-  const [categories, setCategories] = useState<any[]>([]);
-  const [types, setTypes] = useState<any[]>([]);
-  const [occasions, setOccasions] = useState<any[]>([]);
-
   /* UI */
   const [tab, setTab] = useState<Tab>('inquiries');
-
 
   /* Yacht editor */
   const [editing, setEditing] = useState<Partial<YachtDB> | null>(null);
@@ -671,17 +419,14 @@ export default function AdminPage() {
   const [savingYacht, setSavingYacht] = useState(false);
   const { upload, uploading } = useUpload();
 
-  /* ── Auth ── */
   const tryLogin = async (pw: string) => {
     try {
       const res = await fetch('/api/site-config');
       const data = await res.json();
       if (data.admin_password === undefined) {
-        // No password set yet — accept anything on first run
         setLoggedIn(true);
         return true;
       }
-      // Password exists but is not returned by API; verify via a write ping
       const check = await fetch('/api/site-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -710,10 +455,8 @@ export default function AdminPage() {
     } else {
       setLoggedIn(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Data fetchers ── */
   const fetchYachts = useCallback(async () => {
     try {
       const res = await fetch('/api/yachts-master');
@@ -735,33 +478,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  const deleteInquiry = async (id: number) => {
-    if (!confirm('Delete this inquiry permanently?')) return;
-    try {
-      const res = await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
-      toast.success('Inquiry deleted');
-      fetchInquiries();
-    } catch {
-      toast.error('Delete failed');
-    }
-  };
-
-  const markInquiryComplete = async (id: number) => {
-    try {
-      const res = await fetch(`/api/inquiries/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success('Marked as complete');
-      fetchInquiries();
-    } catch {
-      toast.error('Update failed');
-    }
-  };
-
   const fetchConfig = useCallback(async () => {
     try {
       const res = await fetch('/api/site-config');
@@ -778,9 +494,7 @@ export default function AdminPage() {
         fetch('/api/yacht-types'),
         fetch('/api/yacht-occasions'),
       ]);
-      setCategories(await catRes.json());
-      setTypes(await typeRes.json());
-      setOccasions(await occRes.json());
+      // In the combined tab, we don't necessarily need them here unless used elsewhere
     } catch (e) {
       console.error('Failed to fetch filter lists', e);
     }
@@ -793,7 +507,6 @@ export default function AdminPage() {
       .finally(() => setLoading(false));
   }, [loggedIn, fetchYachts, fetchInquiries, fetchConfig, fetchFilterLists]);
 
-  /* ── Yacht editor open ── */
   const openYacht = async (y: YachtDB | null) => {
     if (y) {
       setIsNew(false);
@@ -826,7 +539,6 @@ export default function AdminPage() {
     setAmenities([]);
   };
 
-  /* ── Single save: yacht + amenities ── */
   const saveYacht = async () => {
     if (!editing) return;
     if (!editing.name?.trim()) {
@@ -860,7 +572,6 @@ export default function AdminPage() {
         if (!res.ok) throw new Error();
       }
 
-      // Save amenities (new + changed)
       const yachtId = isNew
         ? ((await (await fetch('/api/yachts-master')).json()).find?.(
             (x: YachtDB) => x.name === editing.name
@@ -901,7 +612,6 @@ export default function AdminPage() {
     }
   };
 
-  /* ── Delete yacht ── */
   const deleteYacht = async (id: string) => {
     if (!confirm('Delete this yacht permanently?')) return;
     try {
@@ -918,7 +628,33 @@ export default function AdminPage() {
     }
   };
 
-  /* ═══════════ LOGIN SCREEN ═══════════ */
+  const deleteInquiry = async (id: number) => {
+    if (!confirm('Delete this inquiry permanently?')) return;
+    try {
+      const res = await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Inquiry deleted');
+      fetchInquiries();
+    } catch {
+      toast.error('Delete failed');
+    }
+  };
+
+  const markInquiryComplete = async (id: number) => {
+    try {
+      const res = await fetch(`/api/inquiries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed' }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Marked as complete');
+      fetchInquiries();
+    } catch {
+      toast.error('Update failed');
+    }
+  };
+
   if (loggedIn === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -966,10 +702,8 @@ export default function AdminPage() {
     );
   }
 
-  /* ═══════════ MAIN LAYOUT ═══════════ */
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -989,7 +723,6 @@ export default function AdminPage() {
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>
-        {/* Tabs */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto">
           {TABS.map((t) => (
             <button
@@ -1012,7 +745,6 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 pb-24">
-        {/* ═══════════ YACHTS ═══════════ */}
         {tab === 'yachts' && !editing && (
           <div>
             <div className="flex items-center justify-between mb-6">
@@ -1088,29 +820,8 @@ export default function AdminPage() {
             )}
           </div>
         )}
-        {tab === 'categories' && (
-          <ListManager
-            title="Yacht Categories"
-            apiEndpoint="/api/yacht-categories"
-            adminPw={adminPw}
-            onRefresh={fetchYachts}
-          />
-        )}
         {tab === 'types' && (
-          <ListManager
-            title="Yacht Types"
-            apiEndpoint="/api/yacht-types"
-            adminPw={adminPw}
-            onRefresh={fetchYachts}
-          />
-        )}
-        {tab === 'occasions' && (
-          <ListManager
-            title="Yacht Occasions"
-            apiEndpoint="/api/yacht-occasions"
-            adminPw={adminPw}
-            onRefresh={fetchYachts}
-          />
+          <TypesManager adminPw={adminPw} onRefresh={fetchYachts} />
         )}
         {tab === 'inquiries' && (
           <div className="space-y-8">
@@ -1258,6 +969,36 @@ export default function AdminPage() {
           />
         )}
       </main>
+
+      {editing && (
+        <YachtEditor
+          yacht={editing}
+          setEditing={setEditing}
+          isNew={isNew}
+          amenities={amenities}
+          setAmenities={setAmenities}
+          selectedOccasions={selectedOccasions}
+          setSelectedOccasions={setSelectedOccasions}
+          occasionsList={occasions}
+          upload={upload}
+          uploading={uploading}
+          onSave={saveYacht}
+          onClose={closeYacht}
+          saving={savingYacht}
+        />
+      )}
     </div>
   );
 }
+
+type Tab = 'yachts' | 'inquiries' | 'content' | 'gallery' | 'experiences' | 'seo' | 'types';
+
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'inquiries', label: 'Inquiries', icon: <Inbox className="w-4 h-4" /> },
+  { id: 'content', label: 'Content', icon: <LayoutGrid className="w-4 h-4" /> },
+  { id: 'gallery', label: 'Gallery', icon: <ImageIcon className="w-4 h-4" /> },
+  { id: 'experiences', label: 'Experiences', icon: <LayoutGrid className="w-4 h-4" /> },
+  { id: 'yachts', label: 'Yachts', icon: <Ship className="w-4 h-4" /> },
+  { id: 'types', label: 'Types', icon: <LayoutGrid className="w-4 h-4" /> },
+  { id: 'seo', label: 'SEO Content', icon: <LayoutGrid className="w-4 h-4" /> },
+];

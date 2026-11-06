@@ -78,6 +78,15 @@ function dbToCard(y: any): Yacht {
   };
 }
 
+function getUniqueOptions(options: { id: string | number; name: string }[]) {
+  const seen = new Set();
+  return options.filter(opt => {
+    const duplicate = seen.has(opt.name);
+    seen.add(opt.name);
+    return !duplicate;
+  });
+}
+
 /* ── Range slider component ───────────────────────────────────── */
 function PriceSlider({
   label,
@@ -256,7 +265,7 @@ function SelectFilter({
           >
             <input
               type="checkbox"
-              checked={selected.length === uniqueOptions.length}
+              checked={selected.length === 0 || selected.length === uniqueOptions.length}
               onChange={toggleAll}
               className="w-4 h-4 rounded border-gray-300 text-[#3D9B7D] focus:ring-[#3D9B7D]"
             />
@@ -372,9 +381,22 @@ function FleetContent() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (categories.length) params.append('category', categories.join(','));
-      if (types.length) params.append('type', types.join(','));
-      if (occasions.length) params.append('occasion', occasions.join(','));
+
+      const uniqueCats = getUniqueOptions(catList);
+      if (categories.length && categories.length !== uniqueCats.length) {
+        params.append('category', categories.join(','));
+      }
+
+      const uniqueTyps = getUniqueOptions(typeList);
+      if (types.length && types.length !== uniqueTyps.length) {
+        params.append('type', types.join(','));
+      }
+
+      const uniqueOccs = getUniqueOptions(occList);
+      if (occasions.length && occasions.length !== uniqueOccs.length) {
+        params.append('occasion', occasions.join(','));
+      }
+
       if (amenities.length) params.append('amenities', amenities.join(','));
       if (guestCount > 0) params.append('guests', guestCount.toString());
       params.append('price_min', '0');
@@ -382,6 +404,7 @@ function FleetContent() {
         params.append('price_max', priceMaxFilter.toString());
       }
       params.append('sort', sort);
+
 
       const res = await fetch(`/api/yachts-master?${params.toString()}`);
       const data = await res.json();
@@ -513,7 +536,7 @@ function FleetContent() {
           </AnimatedSection>
         </div>
         {/* ── Filters & Sorting ── */}
-        {filtersVisible && (
+                {filtersVisible && (
           <div className="bg-[#F8FAFA] border border-[#D0E8DF] rounded-2xl p-5 md:p-6 mb-10 shadow-sm">
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
               {/* Left: Price Range */}
@@ -561,9 +584,6 @@ function FleetContent() {
               </div>
             </div>
             <div className="mt-6 pt-4 border-t border-[#D0E8DF]">
-              <p className="text-[13px] text-gray-500 font-medium mb-4">
-                Showing <span className="font-bold text-[#1A3C35]">{allYachts.length}</span> yachts
-              </p>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
@@ -571,7 +591,7 @@ function FleetContent() {
                     <div className="relative group">
                       <select
                         value={sort}
-                        onChange={(e) => { setSort(e.target.value); updateURL(); }}
+                        onChange={(e) => { setSort(e.target.value); updateURL({ sort: e.target.value }); }}
                         className="appearance-none bg-transparent text-[13px] font-bold text-[#1A3C35] pr-6 pl-0 focus:outline-none cursor-pointer"
                       >
                         <option value="recommended">Recommended</option>
@@ -586,21 +606,25 @@ function FleetContent() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={resetFilters}
-                  className="text-[13px] font-semibold text-[#3D9B7D] hover:text-[#1A3C35] underline underline-offset-2 transition-colors"
-                >
-                  Show All Yachts
-                </button>
+                <div className="flex items-center gap-4">
+                  <p className="text-[13px] text-gray-500 font-medium">
+                    Showing <span className="font-bold text-[#1A3C35]">{allYachts.length}</span> yachts
+                  </p>
+                  <button
+                    onClick={resetFilters}
+                    className="text-[13px] font-semibold text-[#3D9B7D] hover:text-[#1A3C35] underline underline-offset-2 transition-colors"
+                  >
+                    Show All Yachts
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
-        {/* ── Filter Chips ── */}
-        { (categories.length || types.length || occasions.length || amenities.length || guestCount > 2 || sort !== 'recommended') && (
+        { (categories.length || types.length || occasions.length || amenities.length || guestCount > 0 || sort !== 'recommended') && (
           <div className="flex flex-wrap gap-2 mb-8">
             {categories.length > 0 && (
-              categories.length === catList.length ? (
+              categories.length === getUniqueOptions(catList).length ? (
                 <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
                   <span>All Categories</span>
                   <button onClick={() => {
@@ -622,7 +646,7 @@ function FleetContent() {
               )
             )}
             {types.length > 0 && (
-              types.length === typeList.length ? (
+              types.length === getUniqueOptions(typeList).length ? (
                 <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
                   <span>All Types</span>
                   <button onClick={() => {
@@ -644,7 +668,7 @@ function FleetContent() {
               )
             )}
             {occasions.length > 0 && (
-              occasions.length === occList.length ? (
+              occasions.length === getUniqueOptions(occList).length ? (
                 <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
                   <span>All Occasions</span>
                   <button onClick={() => {
