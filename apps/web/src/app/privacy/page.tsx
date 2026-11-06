@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   useEffect(() => {
     fetch('/api/site-config')
       .then((r) => (r.ok ? r.json() : {}))
-      .then((data) => {
+      .then((data: Record<string, string>) => {
         setContent(data.privacy_policy_content || 'Privacy policy content is not yet available.');
         setLoading(false);
       })

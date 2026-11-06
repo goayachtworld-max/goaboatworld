@@ -1,4 +1,5 @@
 import sql from '@/app/api/utils/sql';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 import { z } from 'zod';
 
 const FilterSchema = z.object({
@@ -89,11 +90,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { adminPassword, ...data } = body;
+    const { adminToken, ...data } = body;
 
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
 
     const id =

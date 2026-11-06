@@ -100,7 +100,7 @@ function ImageListEditor({
   );
 }
 
-export default function ExperiencesAdminTab({ adminPw, upload, uploading }: { adminPw: string, upload: (f: File) => Promise<string | null>, uploading: boolean }) {
+export default function ExperiencesAdminTab({ adminToken, upload, uploading }: { adminToken: string, upload: (f: File) => Promise<string | null>, uploading: boolean }) {
 
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [editing, setEditing] = useState<Partial<Experience> | null>(null);
@@ -141,7 +141,7 @@ export default function ExperiencesAdminTab({ adminPw, upload, uploading }: { ad
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...editing, adminPassword: adminPw }),
+        body: JSON.stringify({ ...editing, adminToken }),
       });
 
       if (!res.ok) throw new Error();
@@ -159,7 +159,7 @@ export default function ExperiencesAdminTab({ adminPw, upload, uploading }: { ad
       const res = await fetch(`/api/experiences/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: adminPw }),
+        body: JSON.stringify({ adminToken }),
       });
       if (!res.ok) throw new Error();
       toast.success('Experience deleted');

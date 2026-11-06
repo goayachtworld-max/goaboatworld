@@ -1,4 +1,5 @@
 import sql from '@/app/api/utils/sql';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 
 export async function GET() {
   try {
@@ -11,9 +12,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { adminPassword, name, sort_order } = await request.json();
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    const { name, sort_order } = body;
+    if (!(await isAdminAuthorized(request, body))) return unauthorized();
 
     const [row] = await sql`INSERT INTO yacht_occasions (name, sort_order) VALUES (${name}, ${sort_order}) RETURNING *`;
     return Response.json(row);
@@ -24,9 +25,9 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { adminPassword, id, name, is_active, sort_order } = await request.json();
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    const { id, name, is_active, sort_order } = body;
+    if (!(await isAdminAuthorized(request, body))) return unauthorized();
 
     const [row] = await sql`UPDATE yacht_occasions SET name = ${name}, is_active = ${is_active}, sort_order = ${sort_order} WHERE id = ${id} RETURNING *`;
     return Response.json(row);
@@ -39,9 +40,8 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const { adminPassword } = await request.json();
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    if (!(await isAdminAuthorized(request, body))) return unauthorized();
 
     await sql`DELETE FROM yacht_occasions WHERE id = ${id}`;
     return Response.json({ success: true });

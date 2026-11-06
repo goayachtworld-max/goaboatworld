@@ -5,8 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin'],
+      disallow: ['/admin', '/account'],
     },
-    sitemap: 'https://goaboatworld.com/sitemap.xml',
+    sitemap: 'https://www.goaboatworld.com/sitemap.xml',
   };
 }

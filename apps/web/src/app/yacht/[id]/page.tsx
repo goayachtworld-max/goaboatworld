@@ -17,6 +17,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';

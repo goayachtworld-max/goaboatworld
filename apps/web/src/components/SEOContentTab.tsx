@@ -22,11 +22,11 @@ const PAGES = [
 ];
 
 export default function SEOContentTab({
-  adminPw,
+  adminToken,
   siteConfig,
   onSaved,
 }: {
-  adminPw: string;
+  adminToken: string;
   siteConfig: Record<string, string>;
   onSaved: () => void;
 }) {
@@ -41,7 +41,7 @@ export default function SEOContentTab({
       const res = await fetch('/api/site-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: adminPw, updates: values }),
+        body: JSON.stringify({ adminToken, updates: values }),
       });
       if (!res.ok) throw new Error();
       toast.success('SEO settings saved');

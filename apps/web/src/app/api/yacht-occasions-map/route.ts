@@ -1,4 +1,5 @@
 import sql from '@/app/api/utils/sql';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -20,16 +21,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { adminPassword, yachtId, occasionIds } = await request.json();
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    const { yachtId, occasionIds } = body;
+    if (!(await isAdminAuthorized(request, body))) return unauthorized();
 
-    await sql.begin(async (tx) => {
-      await tx`DELETE FROM yacht_occasion_map WHERE yacht_id = ${yachtId}`;
-      for (const id of occasionIds) {
-        await tx`INSERT INTO yacht_occasion_map (yacht_id, occasion_id) VALUES (${yachtId}, ${id})`;
-      }
-    });
+    const queries = [
+      sql`DELETE FROM yacht_occasion_map WHERE yacht_id = ${yachtId}`,
+      ...(occasionIds as number[]).map(
+        (id) => sql`INSERT INTO yacht_occasion_map (yacht_id, occasion_id) VALUES (${yachtId}, ${id})`
+      ),
+    ];
+    await sql.transaction(queries);
 
     return Response.json({ success: true });
   } catch (e) {

@@ -1,4 +1,5 @@
 import sql from '@/app/api/utils/sql';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -36,11 +37,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { adminPassword, image_url, caption, trip_date, yacht_name, category } = body;
+    const { image_url, caption, trip_date, yacht_name, category } = body;
 
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(req, body))) {
+      return unauthorized();
     }
 
     const [row] = await sql`
@@ -58,11 +58,10 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const body = await req.json();
-    const { adminPassword, id } = body;
+    const { id } = body;
 
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(req, body))) {
+      return unauthorized();
     }
 
     await sql`DELETE FROM gallery WHERE id = ${id}`;
@@ -80,9 +79,11 @@ export async function PATCH(_req: Request) {
       sql`SELECT DISTINCT yacht_name FROM gallery WHERE yacht_name != '' AND is_active = true ORDER BY yacht_name`,
       sql`SELECT DISTINCT category FROM gallery WHERE category != '' AND is_active = true ORDER BY category`,
     ]);
+    const yachtRows = yachts as unknown as { yacht_name: string }[];
+    const categoryRows = categories as unknown as { category: string }[];
     return Response.json({
-      yachts: yachts.map((r: { yacht_name: string }) => r.yacht_name),
-      categories: categories.map((r: { category: string }) => r.category),
+      yachts: yachtRows.map((r) => r.yacht_name),
+      categories: categoryRows.map((r) => r.category),
     });
   } catch (e) {
     console.error(e);

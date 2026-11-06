@@ -10,9 +10,15 @@ export async function generateMetadata(): Promise<Metadata> {
     const keywords = experiences.map(e => e.keywords).filter(Boolean).join(', ');
 
     return {
-      title: 'Our Experiences | Goaboatworld',
+      title: 'Our Experiences',
       description: `Discover our unique yacht experiences in Goa: ${titles}.`,
       keywords: keywords || 'yacht experiences, boat charters, Goa luxury sailing',
+      alternates: { canonical: '/experiences' },
+      openGraph: {
+        title: 'Our Experiences | Goaboatworld',
+        description: `Discover our unique yacht experiences in Goa: ${titles}.`,
+        url: '/experiences',
+      },
     };
   } catch (e) {
     return {

@@ -1,4 +1,5 @@
 import sql from '@/app/api/utils/sql';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,11 +17,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   try {
     const body = await request.json();
-    const { adminPassword, ...data } = body;
+    const { adminToken, ...data } = body;
 
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
 
     const setClauses: string[] = [];
@@ -89,9 +89,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const { id } = await params;
   try {
     const body = await request.json();
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== body.adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
     await sql`DELETE FROM yachts_master WHERE id = ${id}`;
     return Response.json({ success: true });

@@ -1,5 +1,6 @@
 import sql from '@/app/api/utils/sql';
 import { sendEmail } from '@/app/api/utils/send-email.js';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 
 export async function POST(request: Request) {
   try {
@@ -107,7 +108,11 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Inquiry data is customer PII — admins only.
+  if (!(await isAdminAuthorized(request))) {
+    return unauthorized();
+  }
   try {
     const rows = await sql`SELECT * FROM inquiries WHERE is_deleted = false ORDER BY created_at DESC LIMIT 100`;
     return Response.json(rows);

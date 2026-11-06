@@ -48,6 +48,7 @@ interface YachtDB {
 
 interface YachtEditorProps {
   yacht: Partial<YachtDB>;
+  setEditing: React.Dispatch<React.SetStateAction<Partial<YachtDB> | null>>;
   isNew: boolean;
   amenities: Amenity[];
   setAmenities: (a: Amenity[]) => void;
@@ -63,6 +64,7 @@ interface YachtEditorProps {
 
 export default function YachtEditor({
   yacht,
+  setEditing,
   isNew,
   amenities,
   setAmenities,
@@ -76,12 +78,10 @@ export default function YachtEditor({
   saving,
 }: YachtEditorProps) {
   const updateYacht = (patch: Partial<YachtDB>) => {
-    // In a real app, this would be passed as a prop function or handled via state
-    // Since the state is in AdminPage, we'll rely on the parent's state management
-    // However, for a standalone component, we might need to pass setEditing.
-    // Let's assume the parent handles the state and we just call onSave.
-    // But we need a way to update the state.
+    setEditing((prev) => (prev ? { ...prev, ...patch } : prev));
   };
+
+  const num = (v: string) => (v === '' ? 0 : parseInt(v) || 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -110,18 +110,15 @@ export default function YachtEditor({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Yacht Name">
                   <input
-                    value={yacht.name}
-                    onChange={(e) => {
-                      // This is tricky because the state is in AdminPage.
-                      // I'll add a setEditing prop to the editor.
-                    }}
+                    value={yacht.name ?? ''}
+                    onChange={(e) => updateYacht({ name: e.target.value })}
                     className={inputCls}
                   />
                 </Field>
                 <Field label="Promo Label">
                   <input
-                    value={yacht.promo_label}
-                    onChange={(e) => {}}
+                    value={yacht.promo_label ?? ''}
+                    onChange={(e) => updateYacht({ promo_label: e.target.value })}
                     className={inputCls}
                   />
                 </Field>
@@ -129,37 +126,37 @@ export default function YachtEditor({
 
               <FormattedTextArea
                 label="Description"
-                value={yacht.description}
-                onChange={(v) => {}}
+                value={yacht.description ?? ''}
+                onChange={(v) => updateYacht({ description: v })}
               />
 
               <FormattedTextArea
                 label="Why Choose This Yacht?"
-                value={yacht.why_choose}
-                onChange={(v) => {}}
+                value={yacht.why_choose ?? ''}
+                onChange={(v) => updateYacht({ why_choose: v })}
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Capacity (Guests)">
                   <input
                     type="number"
-                    value={yacht.capacity}
-                    onChange={(e) => {}}
+                    value={yacht.capacity ?? 0}
+                    onChange={(e) => updateYacht({ capacity: num(e.target.value) })}
                     className={inputCls}
                   />
                 </Field>
                 <Field label="Duration">
                   <input
-                    value={yacht.duration}
-                    onChange={(e) => {}}
+                    value={yacht.duration ?? ''}
+                    onChange={(e) => updateYacht({ duration: e.target.value })}
                     className={inputCls}
                   />
                 </Field>
                 <Field label="Sort Order">
                   <input
                     type="number"
-                    value={yacht.sort_order}
-                    onChange={(e) => {}}
+                    value={yacht.sort_order ?? 0}
+                    onChange={(e) => updateYacht({ sort_order: num(e.target.value) })}
                     className={inputCls}
                   />
                 </Field>
@@ -169,24 +166,24 @@ export default function YachtEditor({
                 <Field label="Sailing Price/hr">
                   <input
                     type="number"
-                    value={yacht.sailing_price}
-                    onChange={(e) => {}}
+                    value={yacht.sailing_price ?? 0}
+                    onChange={(e) => updateYacht({ sailing_price: num(e.target.value) })}
                     className={inputCls}
                   />
                 </Field>
                 <Field label="Sailing Price (2hr)">
                   <input
                     type="number"
-                    value={yacht.sailing_price_2hr}
-                    onChange={(e) => {}}
+                    value={yacht.sailing_price_2hr ?? 0}
+                    onChange={(e) => updateYacht({ sailing_price_2hr: num(e.target.value) })}
                     className={inputCls}
                   />
                 </Field>
                 <Field label="Anchorage Price">
                   <input
                     type="number"
-                    value={yacht.anchorage_price}
-                    onChange={(e) => {}}
+                    value={yacht.anchorage_price ?? 0}
+                    onChange={(e) => updateYacht({ anchorage_price: num(e.target.value) })}
                     className={inputCls}
                   />
                 </Field>
@@ -195,15 +192,15 @@ export default function YachtEditor({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Reel URL">
                   <input
-                    value={yacht.reel_url}
-                    onChange={(e) => {}}
+                    value={yacht.reel_url ?? ''}
+                    onChange={(e) => updateYacht({ reel_url: e.target.value })}
                     className={inputCls}
                   />
                 </Field>
                 <Field label="Live Video URL">
                   <input
-                    value={yacht.live_video_url}
-                    onChange={(e) => {}}
+                    value={yacht.live_video_url ?? ''}
+                    onChange={(e) => updateYacht({ live_video_url: e.target.value })}
                     className={inputCls}
                   />
                 </Field>
@@ -213,13 +210,13 @@ export default function YachtEditor({
                 <TagListEditor
                   label="Inclusions"
                   items={yacht.inclusions || []}
-                  onChange={(v) => {}}
+                  onChange={(v) => updateYacht({ inclusions: v })}
                   placeholder="e.g. Captain, Water"
                 />
                 <TagListEditor
                   label="Exclusions"
                   items={yacht.exclusions || []}
-                  onChange={(v) => {}}
+                  onChange={(v) => updateYacht({ exclusions: v })}
                   placeholder="e.g. Food, Alcohol"
                 />
               </div>
@@ -227,7 +224,7 @@ export default function YachtEditor({
               <TagListEditor
                 label="Best For"
                 items={yacht.best_for || []}
-                onChange={(v) => {}}
+                onChange={(v) => updateYacht({ best_for: v })}
                 placeholder="e.g. Birthdays, Couples"
               />
             </div>
@@ -236,7 +233,7 @@ export default function YachtEditor({
             <div className="space-y-6">
               <ImageListEditor
                 images={yacht.images || []}
-                onChange={(v) => {}}
+                onChange={(v) => updateYacht({ images: v })}
                 upload={upload}
                 uploading={uploading}
               />
@@ -269,12 +266,12 @@ export default function YachtEditor({
                 <Row
                   title="Featured"
                   checked={yacht.is_featured || false}
-                  onChange={(v) => {}}
+                  onChange={(v) => updateYacht({ is_featured: v })}
                 />
                 <Row
                   title="Active"
                   checked={yacht.is_active || false}
-                  onChange={(v) => {}}
+                  onChange={(v) => updateYacht({ is_active: v })}
                 />
               </div>
             </div>

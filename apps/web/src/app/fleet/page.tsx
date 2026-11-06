@@ -415,7 +415,7 @@ function FleetContent() {
       setAllYachts(active);
 
       if (active.length) {
-        const maxPrice = Math.max(...active.map((y) => y.rawPrice));
+        const maxPrice = Math.max(...active.map((y: { rawPrice: number }) => y.rawPrice));
         const roundedMaxPrice = Math.max(100000, Math.ceil(maxPrice / 5000) * 5000);
         setPriceMax(roundedMaxPrice);
         if (priceMaxFilter === 100000) setPriceMaxFilter(roundedMaxPrice);

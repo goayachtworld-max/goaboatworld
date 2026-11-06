@@ -31,24 +31,30 @@ function useUpload(): UploadHookResult {
   const upload = React.useCallback(async (input: UploadInput | File): Promise<string | null> => {
     // Normalize: if a bare File is passed, wrap it
     const normalized: UploadInput = input instanceof File ? { file: input } : input;
+    const adminToken =
+      typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('gbw_admin_token') : null;
     try {
       setLoading(true);
       let response: Response | undefined;
       if ('file' in normalized && normalized.file) {
         const formData = new FormData();
         formData.append('file', normalized.file);
-        response = await fetch('/api/upload', { method: 'POST', body: formData });
+        response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+          headers: adminToken ? { 'x-admin-token': adminToken } : undefined,
+        });
       } else if ('url' in normalized && normalized.url) {
         response = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: normalized.url }),
+          body: JSON.stringify({ url: normalized.url, adminToken }),
         });
       } else if ('base64' in normalized && normalized.base64) {
         response = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ base64: normalized.base64 }),
+          body: JSON.stringify({ base64: normalized.base64, adminToken }),
         });
       } else {
         return null;

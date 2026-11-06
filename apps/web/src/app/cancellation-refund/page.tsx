@@ -12,7 +12,7 @@ export default function CancellationRefundPage() {
   useEffect(() => {
     fetch('/api/site-config')
       .then((r) => (r.ok ? r.json() : {}))
-      .then((data) => {
+      .then((data: Record<string, string>) => {
         setContent(data.cancellation_refund_policy_content || 'Cancellation & Refund Policy content is not yet available.');
         setLoading(false);
       })

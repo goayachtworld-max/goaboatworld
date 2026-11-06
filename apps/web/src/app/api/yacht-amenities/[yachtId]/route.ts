@@ -1,4 +1,5 @@
 import sql from '@/app/api/utils/sql';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ yachtId: string }> }) {
   const { yachtId } = await params;
@@ -20,11 +21,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ yac
   const { yachtId } = await params;
   try {
     const body = await request.json();
-    const { adminPassword, name, description, icon, enabled, sort_order } = body;
+    const { name, description, icon, enabled, sort_order } = body;
 
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
 
     const [row] = await sql`
@@ -43,11 +43,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ yach
   const { yachtId } = await params;
   try {
     const body = await request.json();
-    const { adminPassword, id, name, description, icon, enabled, sort_order } = body;
+    const { id, name, description, icon, enabled, sort_order } = body;
 
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
 
     const setClauses: string[] = [];
@@ -95,11 +94,10 @@ export async function DELETE(
   const { yachtId } = await params;
   try {
     const body = await request.json();
-    const { adminPassword, id } = body;
+    const { id } = body;
 
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
 
     await sql`DELETE FROM yacht_amenities WHERE id = ${id} AND yacht_id = ${yachtId}`;

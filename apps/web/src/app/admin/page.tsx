@@ -58,13 +58,13 @@ const BLANK_YACHT: Partial<YachtDB> = {
 function ListManager({
   title,
   apiEndpoint,
-  adminPw,
+  adminToken,
   onRefresh,
   type: itemType,
 }: {
   title: string;
   apiEndpoint: string;
-  adminPw: string;
+  adminToken: string;
   onRefresh: () => void;
   type: 'category' | 'type' | 'occasion';
 }) {
@@ -118,7 +118,7 @@ function ListManager({
       const res = await fetch(apiEndpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...item, adminPassword: adminPw }),
+        body: JSON.stringify({ ...item, adminToken }),
       });
       if (!res.ok) throw new Error();
       toast.success(`Item ${item.id ? 'updated' : 'created'}`);
@@ -136,7 +136,7 @@ function ListManager({
       const res = await fetch(`${apiEndpoint}?id=${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: adminPw }),
+        body: JSON.stringify({ adminToken }),
       });
       if (!res.ok) throw new Error();
       toast.success('Deleted');
@@ -279,7 +279,7 @@ function ListManager({
   );
 }
 
-function TypesManager({ adminPw, onRefresh }: { adminPw: string; onRefresh: () => void }) {
+function TypesManager({ adminToken, onRefresh }: { adminToken: string; onRefresh: () => void }) {
   const [activeType, setActiveType] = useState<'category' | 'type' | 'occasion'>('category');
 
   const typeConfigs = {
@@ -306,7 +306,7 @@ function TypesManager({ adminPw, onRefresh }: { adminPw: string; onRefresh: () =
       <ListManager
         title={typeConfigs[activeType].title}
         apiEndpoint={typeConfigs[activeType].endpoint}
-        adminPw={adminPw}
+        adminToken={adminToken}
         onRefresh={onRefresh}
         type={activeType}
       />
@@ -315,11 +315,11 @@ function TypesManager({ adminPw, onRefresh }: { adminPw: string; onRefresh: () =
 }
 
 function ContentTab({
-  adminPw,
+  adminToken,
   siteConfig,
   onSaved,
 }: {
-  adminPw: string;
+  adminToken: string;
   siteConfig: Record<string, string>;
   onSaved: () => void;
 }) {
@@ -334,7 +334,7 @@ function ContentTab({
       const res = await fetch('/api/site-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: adminPw, updates: values }),
+        body: JSON.stringify({ adminToken, updates: values }),
       });
       if (!res.ok) throw new Error();
       toast.success('Content saved');
@@ -385,6 +385,10 @@ const CONTENT_FIELDS: { key: string; label: string; textarea?: boolean }[] = [
   { key: 'experiences_section_title', label: 'Experiences Section Title' },
   { key: 'whatsapp_number', label: 'WhatsApp Number' },
   { key: 'contact_email', label: 'Contact Email' },
+  {
+    key: 'admin_email',
+    label: 'Admin Email (receives the password reset link — defaults to goaboatworld@gmail.com)',
+  },
   { key: 'phone', label: 'Phone' },
   { key: 'address', label: 'Address' },
   { key: 'business_hours', label: 'Business Hours' },
@@ -400,14 +404,19 @@ const CONTENT_FIELDS: { key: string; label: string; textarea?: boolean }[] = [
 export default function AdminPage() {
   /* Auth */
   const [adminPw, setAdminPw] = useState('');
+  const [adminToken, setAdminToken] = useState('');
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [loginError, setLoginError] = useState('');
+  const [resetNotice, setResetNotice] = useState('');
+  const [resetLink, setResetLink] = useState('');
+  const [sendingReset, setSendingReset] = useState(false);
 
   /* Data */
   const [yachts, setYachts] = useState<YachtDB[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [occasions, setOccasions] = useState<{ id: number; name: string }[]>([]);
 
   /* UI */
   const [tab, setTab] = useState<Tab>('inquiries');
@@ -420,25 +429,25 @@ export default function AdminPage() {
   const [savingYacht, setSavingYacht] = useState(false);
   const { upload, uploading } = useUpload();
 
+  const applyToken = (token: string) => {
+    setAdminToken(token);
+    sessionStorage.setItem('gbw_admin_token', token);
+    setLoggedIn(true);
+  };
+
   const tryLogin = async (pw: string) => {
     try {
-      const res = await fetch('/api/site-config');
-      const data = await res.json();
-      if (data.admin_password === undefined) {
-        setLoggedIn(true);
-        return true;
-      }
-      const check = await fetch('/api/site-config', {
+      const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: pw, updates: {} }),
+        body: JSON.stringify({ password: pw }),
       });
-      if (check.ok) {
-        setLoggedIn(true);
-        sessionStorage.setItem('bms_admin_pw', pw);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.token) {
+        applyToken(data.token);
         return true;
       }
-      setLoginError('Incorrect password');
+      setLoginError(data.error || 'Incorrect password');
       return false;
     } catch {
       setLoginError('Login failed. Try again.');
@@ -447,16 +456,67 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('bms_admin_pw');
-    if (saved) {
-      setAdminPw(saved);
-      tryLogin(saved).then((ok) => {
-        setLoggedIn(ok);
-      });
-    } else {
+    const saved = sessionStorage.getItem('gbw_admin_token');
+    if (!saved) {
       setLoggedIn(false);
+      return;
     }
+    fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: saved }),
+    })
+      .then((res) => {
+        if (res.ok) applyToken(saved);
+        else {
+          sessionStorage.removeItem('gbw_admin_token');
+          setLoggedIn(false);
+        }
+      })
+      .catch(() => {
+        sessionStorage.removeItem('gbw_admin_token');
+        setLoggedIn(false);
+      });
   }, []);
+
+  const handleForgotPassword = async () => {
+    if (sendingReset) return;
+    setSendingReset(true);
+    setResetNotice('');
+    setResetLink('');
+    setLoginError('');
+    try {
+      const res = await fetch('/api/admin/forgot-password', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setResetNotice(data.message || 'A password reset link has been sent to the admin email.');
+        // Local development without RESEND_API_KEY returns the link directly
+        if (data.resetUrl) setResetLink(data.resetUrl);
+      } else {
+        setResetNotice(data.error || 'Could not send the reset link. Please try again.');
+      }
+    } catch {
+      setResetNotice('Could not send the reset link. Please try again.');
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
+  const forceLogout = useCallback(() => {
+    sessionStorage.removeItem('gbw_admin_token');
+    setAdminToken('');
+    setAdminPw('');
+    setLoggedIn(false);
+  }, []);
+
+  const adminFetch = useCallback(
+    (url: string, init: RequestInit = {}) =>
+      fetch(url, {
+        ...init,
+        headers: { ...(init.headers || {}), 'x-admin-token': adminToken },
+      }),
+    [adminToken]
+  );
 
   const fetchYachts = useCallback(async () => {
     try {
@@ -471,31 +531,38 @@ export default function AdminPage() {
 
   const fetchInquiries = useCallback(async () => {
     try {
-      const res = await fetch('/api/inquiries');
+      const res = await adminFetch('/api/inquiries');
+      if (res.status === 401) {
+        forceLogout();
+        toast.error('Session expired — sign in again');
+        return;
+      }
       const data = await res.json();
       setInquiries(Array.isArray(data) ? data : data.inquiries || []);
     } catch {
       toast.error('Could not load inquiries');
     }
-  }, []);
+  }, [adminFetch, forceLogout]);
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch('/api/site-config');
-      setConfig(await res.json());
+      const res = await adminFetch('/api/site-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: {} }),
+      });
+      if (res.status === 401) return; // handled by fetchInquiries' logout
+      const data = await res.json();
+      setConfig(data.config || {});
     } catch {
       /* silent */
     }
-  }, []);
+  }, [adminFetch]);
 
   const fetchFilterLists = useCallback(async () => {
     try {
-      const [catRes, typeRes, occRes] = await Promise.all([
-        fetch('/api/yacht-categories'),
-        fetch('/api/yacht-types'),
-        fetch('/api/yacht-occasions'),
-      ]);
-      // In the combined tab, we don't necessarily need them here unless used elsewhere
+      const occRes = await fetch('/api/yacht-occasions');
+      if (occRes.ok) setOccasions(await occRes.json());
     } catch (e) {
       console.error('Failed to fetch filter lists', e);
     }
@@ -549,7 +616,7 @@ export default function AdminPage() {
     setSavingYacht(true);
     try {
       const payload = {
-        adminPassword: adminPw,
+        adminToken,
         ...editing,
         images: editing.images ?? [],
         inclusions: editing.inclusions ?? [],
@@ -581,7 +648,7 @@ export default function AdminPage() {
 
       for (const a of amenities) {
         const body = {
-          adminPassword: adminPw,
+          adminToken,
           name: a.name,
           description: a.description,
           icon: a.icon,
@@ -616,10 +683,10 @@ export default function AdminPage() {
   const deleteYacht = async (id: string) => {
     if (!confirm('Delete this yacht permanently?')) return;
     try {
-      const res = await fetch(`/api/yachts-master/${id}`, {
+      const res = await adminFetch(`/api/yachts-master/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: adminPw }),
+        body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error();
       toast.success('Yacht deleted');
@@ -632,7 +699,7 @@ export default function AdminPage() {
   const deleteInquiry = async (id: number) => {
     if (!confirm('Delete this inquiry permanently?')) return;
     try {
-      const res = await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/inquiries/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
       toast.success('Inquiry deleted');
       fetchInquiries();
@@ -643,7 +710,7 @@ export default function AdminPage() {
 
   const markInquiryComplete = async (id: number) => {
     try {
-      const res = await fetch(`/api/inquiries/${id}`, {
+      const res = await adminFetch(`/api/inquiries/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'completed' }),
@@ -697,6 +764,25 @@ export default function AdminPage() {
             >
               Sign In
             </button>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={sendingReset}
+              className="w-full text-center text-[13px] font-semibold text-gray-400 hover:text-[#3D9B7D] transition-colors disabled:opacity-50 pt-1"
+            >
+              {sendingReset ? 'Sending reset link…' : 'Forgot password? Email a reset link'}
+            </button>
+            {resetNotice && (
+              <p className="text-[13px] text-gray-500 text-center">{resetNotice}</p>
+            )}
+            {resetLink && (
+              <a
+                href={resetLink}
+                className="block text-center text-[13px] font-semibold text-[#3D9B7D] underline break-all"
+              >
+                {resetLink}
+              </a>
+            )}
           </form>
         </div>
       </div>
@@ -714,11 +800,7 @@ export default function AdminPage() {
             <span className="font-bold text-gray-900">Goaboatworld Admin</span>
           </div>
           <button
-            onClick={() => {
-              sessionStorage.removeItem('bms_admin_pw');
-              setLoggedIn(false);
-              setAdminPw('');
-            }}
+            onClick={forceLogout}
             className="flex items-center gap-2 text-[13px] font-semibold text-gray-500 hover:text-red-500 transition-colors"
           >
             <LogOut className="w-4 h-4" /> Sign out
@@ -822,7 +904,7 @@ export default function AdminPage() {
           </div>
         )}
         {tab === 'types' && (
-          <TypesManager adminPw={adminPw} onRefresh={fetchYachts} />
+          <TypesManager adminToken={adminToken} onRefresh={fetchYachts} />
         )}
         {tab === 'inquiries' && (
           <div className="space-y-8">
@@ -956,15 +1038,15 @@ export default function AdminPage() {
           </div>
         )}
         {tab === 'content' && (
-          <ContentTab adminPw={adminPw} siteConfig={config} onSaved={fetchConfig} />
+          <ContentTab adminToken={adminToken} siteConfig={config} onSaved={fetchConfig} />
         )}
         {tab === 'seo' && (
-          <SEOContentTab adminPw={adminPw} siteConfig={config} onSaved={fetchConfig} />
+          <SEOContentTab adminToken={adminToken} siteConfig={config} onSaved={fetchConfig} />
         )}
-        {tab === 'gallery' && <GalleryAdminTab adminPw={adminPw} />}
+        {tab === 'gallery' && <GalleryAdminTab adminToken={adminToken} />}
         {tab === 'experiences' && (
           <ExperiencesAdminTab
-            adminPw={adminPw}
+            adminToken={adminToken}
             upload={upload}
             uploading={uploading}
           />

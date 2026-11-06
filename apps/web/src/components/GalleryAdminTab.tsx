@@ -40,10 +40,10 @@ const CAT_EMOJI: Record<string, string> = {
 const PRESET_CATEGORIES = Object.keys(CAT_EMOJI);
 
 interface Props {
-  adminPw: string;
+  adminToken: string;
 }
 
-export default function GalleryAdminTab({ adminPw }: Props) {
+export default function GalleryAdminTab({ adminToken }: Props) {
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -117,7 +117,7 @@ export default function GalleryAdminTab({ adminPw }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminPassword: adminPw,
+          adminToken,
           image_url: imageUrl,
           caption,
           trip_date: tripDate || null,
@@ -148,7 +148,7 @@ export default function GalleryAdminTab({ adminPw }: Props) {
       const res = await fetch('/api/gallery', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword: adminPw, id }),
+        body: JSON.stringify({ adminToken, id }),
       });
       if (!res.ok) throw new Error();
       toast.success('Deleted');

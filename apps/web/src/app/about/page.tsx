@@ -2,6 +2,19 @@ import React from 'react';
 import Link from 'next/link';
 import { Shield, Heart, Award, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'About Us',
+  description:
+    'Goaboatworld is Goa’s premium private yacht company — curated charters, sunset cruises and celebrations on the water, sailing from Panjim Jetty.',
+  alternates: { canonical: '/about' },
+  openGraph: {
+    title: 'About Us | Goaboatworld',
+    description: 'Goa’s premium private yacht company — curated charters and celebrations on the water.',
+    url: '/about',
+  },
+};
 
 export default function AboutPage() {
   return (

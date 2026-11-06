@@ -1,4 +1,5 @@
 import sql from '@/app/api/utils/sql';
+import { isAdminAuthorized, unauthorized } from '@/app/api/utils/auth';
 
 export async function PUT(
   request: Request,
@@ -7,12 +8,10 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { adminPassword, title, description, images, sort_order, is_active, keywords } = body;
+    const { title, description, images, sort_order, is_active, keywords } = body;
 
-    // Verify admin password
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
 
     await sql`
@@ -39,12 +38,9 @@ export async function DELETE(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { adminPassword } = body;
 
-    // Verify admin password
-    const [cfg] = await sql`SELECT value FROM site_config WHERE key = 'admin_password'`;
-    if (!cfg || cfg.value !== adminPassword) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!(await isAdminAuthorized(request, body))) {
+      return unauthorized();
     }
 
     await sql`DELETE FROM experiences WHERE id = ${id}::int`;

@@ -12,7 +12,7 @@ export default function TermsPage() {
   useEffect(() => {
     fetch('/api/site-config')
       .then((r) => (r.ok ? r.json() : {}))
-      .then((data) => {
+      .then((data: Record<string, string>) => {
         setContent(data.terms_conditions_content || 'Terms and conditions content is not yet available.');
         setLoading(false);
       })

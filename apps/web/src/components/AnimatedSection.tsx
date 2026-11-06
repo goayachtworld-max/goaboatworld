@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'motion/react';
+import { motion, type Variants } from 'motion/react';
 import { ReactNode } from 'react';
 
 interface AnimatedSectionProps {
@@ -18,7 +18,7 @@ export default function AnimatedSection({
   duration = 0.6,
   className = '',
 }: AnimatedSectionProps) {
-  const variants = {
+  const variants: Variants = {
     hidden: {
       opacity: 0,
       x: direction === 'left' ? -20 : direction === 'right' ? 20 : 0,
