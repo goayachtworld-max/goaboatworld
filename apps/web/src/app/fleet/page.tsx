@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useRef, Suspense, useCallback } from 'react';
 import YachtCard from '@/components/YachtCard';
 import { type Yacht } from '@/data/yachts';
 import Link from 'next/link';
-import { MessageCircle, Phone, SlidersHorizontal, X, Users, IndianRupee } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { MessageCircle, Phone, SlidersHorizontal, X, Users, IndianRupee, ChevronDown, LayoutGrid, Ship } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import AnimatedSection from '@/components/AnimatedSection';
 
 /* ── DB shape ─────────────────────────────────────────────────── */
@@ -36,14 +36,14 @@ function parseImgs(v: unknown): string[] {
   return [];
 }
 
-function dbToCard(y: DBYacht): Yacht {
+function dbToCard(y: any): Yacht {
   const imgs = parseImgs(y.images);
-  const all = y.banner_image ? [y.banner_image, ...imgs.filter((u) => u !== y.banner_image)] : imgs;
+  const all = y.banner_image ? [y.banner_image, ...imgs.filter((u: any) => u !== y.banner_image)] : imgs;
   const unique = Array.from(new Set(all));
   return {
     id: y.id,
     name: y.name,
-    type: y.type,
+    type: y.type_name || y.type,
     capacity: y.capacity,
     duration: '1–4 Hours',
     description: y.description,
@@ -79,7 +79,7 @@ function dbToCard(y: DBYacht): Yacht {
 }
 
 /* ── Range slider component ───────────────────────────────────── */
-function RangeSlider({
+function PriceSlider({
   label,
   icon,
   min,
@@ -95,13 +95,13 @@ function RangeSlider({
   min: number;
   max: number;
   step: number;
-  value: [number, number];
-  onChange: (v: [number, number]) => void;
+  value: number;
+  onChange: (v: number) => void;
   format: (n: number) => string;
   showPlusAtMax?: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const activeThumb = useRef<'low' | 'high' | null>(null);
+  const activeThumb = useRef<boolean>(false);
 
   const pct = (n: number) => ((n - min) / (max - min)) * 100;
 
@@ -110,35 +110,29 @@ function RangeSlider({
     const rect = trackRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const raw = min + ratio * (max - min);
+
+    // Snap to 5k increments for the first 35k
+    if (raw <= 35000) {
+      return Math.round(raw / 5000) * 5000;
+    }
     return Math.round(raw / step) * step;
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
+    activeThumb.current = true;
     const v = getValFromPointer(e.clientX);
-    const lowDist = Math.abs(v - value[0]);
-    const highDist = Math.abs(v - value[1]);
-    if (lowDist <= highDist) {
-      activeThumb.current = 'low';
-      onChange([Math.min(Math.max(v, min), value[1] - step), value[1]]);
-    } else {
-      activeThumb.current = 'high';
-      onChange([value[0], Math.max(Math.min(v, max), value[0] + step)]);
-    }
+    onChange(v);
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!activeThumb.current) return;
     const v = getValFromPointer(e.clientX);
-    if (activeThumb.current === 'low') {
-      onChange([Math.min(Math.max(v, min), value[1] - step), value[1]]);
-    } else {
-      onChange([value[0], Math.max(Math.min(v, max), value[0] + step)]);
-    }
+    onChange(v);
   }
 
   function handlePointerUp() {
-    activeThumb.current = null;
+    activeThumb.current = false;
   }
 
   return (
@@ -150,7 +144,6 @@ function RangeSlider({
         </span>
       </div>
       <div className="px-2.5">
-        {/* Track */}
         <div
           ref={trackRef}
           className="relative h-2 rounded-full bg-gray-200 cursor-grab active:cursor-grabbing select-none"
@@ -160,48 +153,176 @@ function RangeSlider({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
         >
-          {/* Discrete Ticks for guest-like sliders */}
-          {step === 1 && (
-            <div className="absolute inset-0 flex justify-between pointer-events-none">
-              {Array.from({ length: max - min + 1 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-px h-full bg-gray-300"
-                  style={{ opacity: 0.5 }}
-                />
-              ))}
-            </div>
-          )}
-          {/* Active fill */}
           <div
             className="absolute h-2 rounded-full bg-[#3D9B7D] pointer-events-none"
-            style={{ left: `${pct(value[0])}%`, right: `${100 - pct(value[1])}%` }}
+            style={{ left: '0', right: `${100 - pct(value)}%` }}
           />
-          {/* Low thumb */}
           <div
             className="absolute w-5 h-5 rounded-full bg-white border-2 border-[#3D9B7D] shadow-md pointer-events-none transition-transform"
-            style={{ left: `${pct(value[0])}%`, top: '50%', transform: 'translate(-50%, -50%)' }}
-          />
-          {/* High thumb */}
-          <div
-            className="absolute w-5 h-5 rounded-full bg-white border-2 border-[#3D9B7D] shadow-md pointer-events-none transition-transform"
-            style={{ left: `${pct(value[1])}%`, top: '50%', transform: 'translate(-50%, -50%)' }}
+            style={{ left: `${pct(value)}%`, top: '50%', transform: 'translate(-50%, -50%)' }}
           />
         </div>
-        {/* Min / Max labels */}
         <div className="flex justify-between items-center mt-3 gap-2">
           <span className="text-[11px] text-gray-500 font-medium bg-gray-100 rounded-lg px-2.5 py-1 whitespace-nowrap">
-            From&nbsp;
-            <span className="font-bold text-[#1A3C35]">{format(value[0])}</span>
+            {value >= max ? 'All' : `Up to ${format(value)}`}
           </span>
-          <span className="text-gray-300 text-xs">—</span>
-          <span className="text-[11px] text-gray-500 font-medium bg-gray-100 rounded-lg px-2.5 py-1 whitespace-nowrap">
-            To&nbsp;
-            <span className="font-bold text-[#1A3C35]">
-              {format(value[1])}
-              {showPlusAtMax && value[1] >= max ? '+' : ''}
-            </span>
-          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Select Filter Component ────────────────────────────────────── */
+function SelectFilter({
+  label,
+  icon,
+  options,
+  selected,
+  onChange,
+  placeholder = 'All',
+}: {
+  label: string;
+  icon: React.ReactNode;
+  options: { id: string | number; name: string }[];
+  selected: (string | number)[];
+  onChange: (v: (string | number)[]) => void;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const uniqueOptions = useMemo(() => {
+    const seen = new Set();
+    return options.filter(opt => {
+      const duplicate = seen.has(opt.name);
+      seen.add(opt.name);
+      return !duplicate;
+    });
+  }, [options]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleOption = (id: string | number) => {
+    if (selected.includes(id)) {
+      onChange(selected.filter((i) => i !== id));
+    } else {
+      onChange([...selected, id]);
+    }
+  };
+
+  const toggleAll = () => {
+    if (selected.length === uniqueOptions.length) {
+      onChange([]);
+    } else {
+      onChange(uniqueOptions.map(o => o.id));
+    }
+  };
+
+  const selectedLabel = selected.length === 0
+    ? placeholder
+    : selected.length === uniqueOptions.length
+      ? 'All'
+      : selected.length === 1
+        ? uniqueOptions.find(o => o.id === selected[0])?.name || 'Selected'
+        : `${selected.length} selected`;
+
+  return (
+    <div ref={containerRef} className="relative flex-1 min-w-[160px]">
+      <div className="flex items-center gap-2 mb-2">
+        {icon}
+        <span className="text-[11px] font-bold text-[#1A3C35] uppercase tracking-wider opacity-70">
+          {label}
+        </span>
+      </div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:border-[#3D9B7D] transition-all focus:outline-none"
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="absolute z-50 top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl p-2 max-h-60 overflow-y-auto custom-scrollbar">
+          <label
+            className="flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors text-[13px] font-bold text-gray-700"
+          >
+            <input
+              type="checkbox"
+              checked={selected.length === uniqueOptions.length}
+              onChange={toggleAll}
+              className="w-4 h-4 rounded border-gray-300 text-[#3D9B7D] focus:ring-[#3D9B7D]"
+            />
+            All
+          </label>
+          <div className="my-1 border-t border-gray-100" />
+          {uniqueOptions.map((opt) => (
+            <label
+              key={opt.id}
+              className="flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors text-[13px] text-gray-600"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(opt.id)}
+                onChange={() => toggleOption(opt.id)}
+                className="w-4 h-4 rounded border-gray-300 text-[#3D9B7D] focus:ring-[#3D9B7D]"
+              />
+              {opt.name}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Guest Select Component ────────────────────────────────────── */
+function GuestSelect({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const options = [
+    { id: 0, name: 'All' },
+    { id: 2, name: '2-5 Guests' },
+    { id: 5, name: '5-10 Guests' },
+    { id: 10, name: '10-15 Guests' },
+    { id: 15, name: '15-20 Guests' },
+    { id: 20, name: '20-25 Guests' },
+    { id: 25, name: '25+ Guests' },
+  ];
+
+  return (
+    <div className="flex-1 min-w-[160px]">
+      <div className="flex items-center gap-2 mb-2">
+        <Users className="w-4 h-4 text-[#3D9B7D]" />
+        <span className="text-[11px] font-bold text-[#1A3C35] uppercase tracking-wider opacity-70">
+          Guests
+        </span>
+      </div>
+      <div className="flex gap-2">
+        <select
+          value={value}
+          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+          className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:border-[#3D9B7D] transition-all focus:outline-none appearance-none cursor-pointer"
+        >
+          {options.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.name}
+            </option>
+          ))}
+        </select>
+        <div className="relative">
+          <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
         </div>
       </div>
     </div>
@@ -211,71 +332,149 @@ function RangeSlider({
 /* ── Main page ────────────────────────────────────────────────── */
 function FleetContent() {
   const searchParams = useSearchParams();
-
+  const router = useRouter();
   const [allYachts, setAllYachts] = useState<Yacht[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* ── Price & guest bounds (computed after data loads) ── */
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
-  const [guestRange, setGuestRange] = useState<[number, number]>([2, 60]);
+  /* ── Filter State ── */
+  const [categories, setCategories] = useState<(string | number)[]>([]);
+  const [types, setTypes] = useState<(string | number)[]>([]);
+  const [occasions, setOccasions] = useState<(string | number)[]>([]);
+  const [amenities, setAmenities] = useState<(string | number)[]>([]);
+  const [priceMaxFilter, setPriceMaxFilter] = useState<number>(100000);
+  const [guestCount, setGuestCount] = useState<number>(0);
+  const [sort, setSort] = useState('recommended');
+
+  /* ── Configuration Lists ── */
+  const [catList, setCatList] = useState<{ id: number; name: string }[]>([]);
+  const [typeList, setTypeList] = useState<{ id: number; name: string }[]>([]);
+  const [occList, setOccList] = useState<{ id: number; name: string }[]>([]);
+  const [amenityList, setAmenityList] = useState<{ id: number; name: string }[]>([]);
+
   const [priceMax, setPriceMax] = useState(100000);
-  const guestMax = 60;
   const [filtersVisible, setFiltersVisible] = useState(false);
 
-  /* ── Fetch yachts ── */
+  /* ── Fetch Config Lists ── */
   useEffect(() => {
-    fetch('/api/yachts-master')
-      .then((r) => (r.ok ? r.json() : { yachts: [] }))
-      .then((data) => {
-        const list: DBYacht[] = Array.isArray(data) ? data : data.yachts || [];
-        const active = list
-          .filter((y) => y.is_active)
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .map(dbToCard);
-
-        setAllYachts(active);
-
-        if (active.length) {
-          const maxPrice = Math.max(...active.map((y) => y.rawPrice));
-          const roundedMaxPrice = Math.ceil(maxPrice / 5000) * 5000;
-
-          setPriceMax(roundedMaxPrice);
-          setPriceRange([0, roundedMaxPrice]);
-          setGuestRange([2, 60]);
-        }
-      })
-      .catch(() => setAllYachts([]))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/yacht-categories').then(r => r.json()),
+      fetch('/api/yacht-types').then(r => r.json()),
+      fetch('/api/yacht-occasions').then(r => r.json()),
+    ]).then(([cats, typs, occs]) => {
+      setCatList(cats);
+      setTypeList(typs);
+      setOccList(occs);
+    });
   }, []);
 
-  /* ── Apply filters ── */
-  const filteredYachts = useMemo(() => {
-    return allYachts.filter((y) => {
-      const priceOk = y.rawPrice >= priceRange[0] && y.rawPrice <= priceRange[1];
-      const guestMin = guestRange[0];
-      const guestMaxVal = guestRange[1];
-      const guestOk =
-        y.capacity >= guestMin && (guestMaxVal >= guestMax ? true : y.capacity <= guestMaxVal);
-      return priceOk && guestOk;
-    });
-  }, [allYachts, priceRange, guestRange, guestMax]);
+  /* ── Fetch Yachts (with filters & sort) ── */
+  const fetchYachts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (categories.length) params.append('category', categories.join(','));
+      if (types.length) params.append('type', types.join(','));
+      if (occasions.length) params.append('occasion', occasions.join(','));
+      if (amenities.length) params.append('amenities', amenities.join(','));
+      if (guestCount > 0) params.append('guests', guestCount.toString());
+      params.append('price_min', '0');
+      if (priceMaxFilter < priceMax) {
+        params.append('price_max', priceMaxFilter.toString());
+      }
+      params.append('sort', sort);
 
-  /* ── Check if filters differ from defaults ── */
-  const isFiltered =
-    priceRange[0] > 0 || priceRange[1] < priceMax || guestRange[0] > 2 || guestRange[1] < guestMax;
+      const res = await fetch(`/api/yachts-master?${params.toString()}`);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.yachts || [];
+      const active = list
+        .filter((y: any) => y.is_active)
+        .map(dbToCard);
+      setAllYachts(active);
 
-  function resetFilters() {
-    setPriceRange([0, priceMax]);
-    setGuestRange([2, 60]);
-  }
+      if (active.length) {
+        const maxPrice = Math.max(...active.map((y) => y.rawPrice));
+        const roundedMaxPrice = Math.max(100000, Math.ceil(maxPrice / 5000) * 5000);
+        setPriceMax(roundedMaxPrice);
+        if (priceMaxFilter === 100000) setPriceMaxFilter(roundedMaxPrice);
+      }
+    } catch {
+      setAllYachts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [categories, types, occasions, amenities, guestCount, priceMaxFilter, sort, priceMax]);
 
-  /* ── Read query params passed from home page ── */
   useEffect(() => {
-    const g = searchParams.get('guests');
-    const p = searchParams.get('price');
-    if (g || p) setFiltersVisible(true);
-    // (future: pre-fill sliders from query params)
+    fetchYachts();
+  }, [fetchYachts]);
+
+  /* ── URL Sync ── */
+  useEffect(() => {
+    const cat = searchParams.get('category');
+    const typ = searchParams.get('type');
+    const occ = searchParams.get('occasion');
+    const ams = searchParams.get('amenities');
+    const gst = searchParams.get('guests');
+    const srt = searchParams.get('sort');
+
+    if (cat) setCategories(cat.split(',').map(v => isNaN(Number(v)) ? v : Number(v)));
+    if (typ) setTypes(typ.split(',').map(v => isNaN(Number(v)) ? v : Number(v)));
+    if (occ) setOccasions(occ.split(',').map(v => isNaN(Number(v)) ? v : Number(v)));
+    if (ams) setAmenities(ams.split(',').map(v => isNaN(Number(v)) ? v : Number(v)));
+    if (gst) setGuestCount(parseInt(gst));
+    if (srt) setSort(srt);
+
+    if (cat || typ || occ || ams || gst || srt) setFiltersVisible(true);
   }, [searchParams]);
+
+  const updateURL = (overrides?: {
+    categories?: (string | number)[];
+    types?: (string | number)[];
+    occasions?: (string | number)[];
+    amenities?: (string | number)[];
+    guestCount?: number;
+    priceMaxFilter?: number;
+    sort?: string;
+  }) => {
+    const params = new URLSearchParams();
+    const c = overrides?.categories ?? categories;
+    const t = overrides?.types ?? types;
+    const o = overrides?.occasions ?? occasions;
+    const a = overrides?.amenities ?? amenities;
+    const g = overrides?.guestCount ?? guestCount;
+    const p = overrides?.priceMaxFilter ?? priceMaxFilter;
+    const s = overrides?.sort ?? sort;
+
+    if (c.length) params.set('category', c.join(','));
+    if (t.length) params.set('type', t.join(','));
+    if (o.length) params.set('occasion', o.join(','));
+    if (a.length) params.set('amenities', a.join(','));
+    if (g > 0) params.set('guests', g.toString());
+    if (p < priceMax) params.set('price_max', p.toString());
+    if (s !== 'recommended') params.set('sort', s);
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    router.push(newUrl, { scroll: false });
+  };
+
+  const resetFilters = () => {
+    setCategories([]);
+    setTypes([]);
+    setOccasions([]);
+    setAmenities([]);
+    setGuestCount(0);
+    setPriceMaxFilter(priceMax);
+    setSort('recommended');
+    updateURL({
+      categories: [],
+      types: [],
+      occasions: [],
+      amenities: [],
+      guestCount: 0,
+      priceMaxFilter: priceMax,
+      sort: 'recommended',
+    });
+  };
 
   const formatPrice = (n: number) => `₹${(n / 1000).toFixed(0)}k`;
   const formatGuest = (n: number) => `${n}`;
@@ -296,12 +495,11 @@ function FleetContent() {
               title={filtersVisible ? 'Hide Filters' : 'Filter Yachts'}
             >
               <SlidersHorizontal className="w-5 h-5" />
-              {isFiltered && !filtersVisible && (
+              {(categories.length || types.length || occasions.length || amenities.length || guestCount > 2 || sort !== 'recommended') && !filtersVisible && (
                 <span className="absolute top-0 right-0 block h-3 w-3 rounded-full bg-[#3D9B7D] ring-2 ring-white" />
               )}
             </button>
           </div>
-
           <AnimatedSection delay={0.1}>
             <p className="text-[#3D9B7D] font-bold uppercase tracking-widest text-xs mb-3">
               Our Fleet
@@ -314,60 +512,195 @@ function FleetContent() {
             </h1>
           </AnimatedSection>
         </div>
-
-        {isFiltered && (
-          <div className="flex justify-center mb-6">
+        {/* ── Filters & Sorting ── */}
+        {filtersVisible && (
+          <div className="bg-[#F8FAFA] border border-[#D0E8DF] rounded-2xl p-5 md:p-6 mb-10 shadow-sm">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+              {/* Left: Price Range */}
+              <div className="w-full lg:w-1/3">
+                <PriceSlider
+                  label="Price"
+                  icon={<IndianRupee className="w-4 h-4 text-[#3D9B7D]" />}
+                  min={0}
+                  max={priceMax}
+                  step={1000}
+                  value={priceMaxFilter}
+                  onChange={(v) => { setPriceMaxFilter(v); updateURL({ priceMaxFilter: v }); }}
+                  format={formatPrice}
+                  showPlusAtMax
+                />
+              </div>
+              <div className="hidden lg:block w-px bg-[#D0E8DF] h-24" />
+              {/* Right: Dropdown Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 flex-1">
+                <SelectFilter
+                  label="Category"
+                  icon={<LayoutGrid className="w-4 h-4 text-[#3D9B7D]" />}
+                  options={catList}
+                  selected={categories}
+                  onChange={(v) => { setCategories(v); updateURL({ categories: v }); }}
+                />
+                <SelectFilter
+                  label="Yacht Type"
+                  icon={<Ship className="w-4 h-4 text-[#3D9B7D]" />}
+                  options={typeList}
+                  selected={types}
+                  onChange={(v) => { setTypes(v); updateURL({ types: v }); }}
+                />
+                <SelectFilter
+                  label="Occasion"
+                  icon={<LayoutGrid className="w-4 h-4 text-[#3D9B7D]" />}
+                  options={occList}
+                  selected={occasions}
+                  onChange={(v) => { setOccasions(v); updateURL({ occasions: v }); }}
+                />
+                <GuestSelect
+                  value={guestCount}
+                  onChange={(v) => { setGuestCount(v); updateURL({ guestCount: v }); }}
+                />
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#D0E8DF]">
+              <p className="text-[13px] text-gray-500 font-medium mb-4">
+                Showing <span className="font-bold text-[#1A3C35]">{allYachts.length}</span> yachts
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px] text-gray-400 font-medium">Sort by:</span>
+                    <div className="relative group">
+                      <select
+                        value={sort}
+                        onChange={(e) => { setSort(e.target.value); updateURL(); }}
+                        className="appearance-none bg-transparent text-[13px] font-bold text-[#1A3C35] pr-6 pl-0 focus:outline-none cursor-pointer"
+                      >
+                        <option value="recommended">Recommended</option>
+                        <option value="popular">Most Popular</option>
+                        <option value="price_asc">Price: Low to High</option>
+                        <option value="price_desc">Price: High to Low</option>
+                        <option value="guests_asc">Capacity: Low to High</option>
+                        <option value="guests_desc">Capacity: High to Low</option>
+                        <option value="newest">Newest First</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={resetFilters}
+                  className="text-[13px] font-semibold text-[#3D9B7D] hover:text-[#1A3C35] underline underline-offset-2 transition-colors"
+                >
+                  Show All Yachts
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ── Filter Chips ── */}
+        { (categories.length || types.length || occasions.length || amenities.length || guestCount > 2 || sort !== 'recommended') && (
+          <div className="flex flex-wrap gap-2 mb-8">
+            {categories.length > 0 && (
+              categories.length === catList.length ? (
+                <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                  <span>All Categories</span>
+                  <button onClick={() => {
+                    setCategories([]);
+                    updateURL({ categories: [] });
+                  }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </div>
+              ) : (
+                categories.map(c => (
+                  <div key={c} className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                    <span>{catList.find(item => item.id === c)?.name || c}</span>
+                    <button onClick={() => {
+                      const next = categories.filter(id => id !== c);
+                      setCategories(next);
+                      updateURL({ categories: next });
+                    }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                  </div>
+                ))
+              )
+            )}
+            {types.length > 0 && (
+              types.length === typeList.length ? (
+                <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                  <span>All Types</span>
+                  <button onClick={() => {
+                    setTypes([]);
+                    updateURL({ types: [] });
+                  }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </div>
+              ) : (
+                types.map(t => (
+                  <div key={t} className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                    <span>{typeList.find(item => item.id === t)?.name || t}</span>
+                    <button onClick={() => {
+                      const next = types.filter(id => id !== t);
+                      setTypes(next);
+                      updateURL({ types: next });
+                    }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                  </div>
+                ))
+              )
+            )}
+            {occasions.length > 0 && (
+              occasions.length === occList.length ? (
+                <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                  <span>All Occasions</span>
+                  <button onClick={() => {
+                    setOccasions([]);
+                    updateURL({ occasions: [] });
+                  }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                </div>
+              ) : (
+                occasions.map(o => (
+                  <div key={o} className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                    <span>{occList.find(item => item.id === o)?.name || o}</span>
+                    <button onClick={() => {
+                      const next = occasions.filter(id => id !== o);
+                      setOccasions(next);
+                      updateURL({ occasions: next });
+                    }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                  </div>
+                ))
+              )
+            )}
+            {amenities.map(a => (
+              <div key={a} className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                <span>{amenityList.find(item => item.id === a)?.name || a}</span>
+                <button onClick={() => {
+                  const next = amenities.filter(id => id !== a);
+                  setAmenities(next);
+                  updateURL({ amenities: next });
+                }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+              </div>
+            ))}
+            {guestCount > 0 && (
+              <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                <span>Guests: {guestCount}+</span>
+                <button onClick={() => {
+                  setGuestCount(0);
+                  updateURL({ guestCount: 0 });
+                }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+              </div>
+            )}
+            {sort !== 'recommended' && (
+              <div className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[12px] font-medium">
+                <span>Sorted by: {sort.replace('_', ' ')}</span>
+                <button onClick={() => {
+                  setSort('recommended');
+                  updateURL({ sort: 'recommended' });
+                }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+              </div>
+            )}
             <button
               onClick={resetFilters}
-              className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-400 hover:text-red-500 transition-colors"
+              className="text-[12px] font-bold text-red-500 hover:text-red-700 ml-2 underline underline-offset-2"
             >
-              <X className="w-4 h-4" /> Reset All Filters
+              Clear All
             </button>
           </div>
         )}
-
-        {/* ── Filter panel ── */}
-        {filtersVisible && (
-          <div className="bg-[#F8FAFA] border border-[#D0E8DF] rounded-2xl p-6 md:p-8 mb-10 shadow-sm">
-            <div className="flex flex-col md:flex-row gap-8 md:gap-12">
-              <RangeSlider
-                label="Guests"
-                icon={<Users className="w-4 h-4 text-[#3D9B7D]" />}
-                min={2}
-                max={60}
-                step={1}
-                value={guestRange}
-                onChange={setGuestRange}
-                format={formatGuest}
-                showPlusAtMax={true}
-              />
-              <div className="hidden md:block w-px bg-[#D0E8DF]" />
-              <RangeSlider
-                label="Price / Hour"
-                icon={<IndianRupee className="w-4 h-4 text-[#3D9B7D]" />}
-                min={0}
-                max={priceMax}
-                step={1000}
-                value={priceRange}
-                onChange={setPriceRange}
-                format={formatPrice}
-              />
-            </div>
-            <div className="mt-5 pt-5 border-t border-[#D0E8DF] flex items-center justify-between flex-wrap gap-3">
-              <p className="text-[13px] text-gray-500 font-medium">
-                Showing <span className="font-bold text-[#1A3C35]">{filteredYachts.length}</span> of{' '}
-                {allYachts.length} yachts
-              </p>
-              <button
-                onClick={resetFilters}
-                className="text-[13px] font-semibold text-[#3D9B7D] hover:text-[#1A3C35] underline underline-offset-2 transition-colors"
-              >
-                Show All Yachts
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ── Yacht Grid ── */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -375,8 +708,7 @@ function FleetContent() {
               <div key={i} className="bg-gray-100 rounded-2xl h-[500px]" style={{ opacity: 0.6 }} />
             ))}
           </div>
-        ) : filteredYachts.length === 0 && allYachts.length > 0 ? (
-          /* No results state */
+        ) : allYachts.length === 0 ? (
           <div className="text-center py-24">
             <div className="text-5xl mb-4">🔍</div>
             <h3 className="text-xl font-bold text-[#1A3C35] mb-2">No yachts match your filters</h3>
@@ -392,14 +724,13 @@ function FleetContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredYachts.map((yacht, i) => (
+            {allYachts.map((yacht, i) => (
               <AnimatedSection key={yacht.id} delay={0.1 * (i % 3)}>
                 <YachtCard yacht={yacht} />
               </AnimatedSection>
             ))}
           </div>
         )}
-
         {/* ── Custom charter CTA ── */}
         <div className="mt-24 relative overflow-hidden rounded-3xl bg-[#1A3C35] text-white">
           <div className="absolute inset-0 opacity-10">
@@ -431,7 +762,7 @@ function FleetContent() {
                 Enquire for Custom Options
               </Link>
               <a
-                href="https://wa.me/919876543210?text=Hi%20Goaboatworld!%20I%20need%20help%20finding%20a%20custom%20yacht%20charter."
+                href="https://wa.me/918446225985?text=Hi%20Goaboatworld!%20I%20need%20help%20finding%20a%20custom%20yacht%20charter."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#1db954] text-white rounded-xl px-8 py-4 text-[14px] font-bold transition-all whitespace-nowrap"

@@ -56,6 +56,9 @@ interface YachtDB {
   description: string;
   why_choose: string;
   type: string;
+  type_id: number;
+  category_id: number;
+  is_featured: boolean;
   capacity: number;
   duration: string;
   sailing_price: number;
@@ -78,6 +81,9 @@ const BLANK_YACHT: Partial<YachtDB> = {
   description: '',
   why_choose: '',
   type: '',
+  type_id: 0,
+  category_id: 0,
+  is_featured: false,
   capacity: 10,
   duration: '1–4 Hours',
   sailing_price: 0,
@@ -369,8 +375,174 @@ function AmenitiesEditor({
 }
 
 /* ──────────────────────────────────────────────────────────────────
-   Content tab (homepage settings)
+   Generic List Manager (for Categories, Types, Occasions)
 ────────────────────────────────────────────────────────────────── */
+function ListManager({
+  title,
+  apiEndpoint,
+  adminPw,
+  onRefresh,
+}: {
+  title: string;
+  apiEndpoint: string;
+  adminPw: string;
+  onRefresh: () => void;
+}) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<any>(null);
+
+  const fetchItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(apiEndpoint);
+      setItems(await res.json());
+    } catch {
+      toast.error(`Could not load ${title}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiEndpoint, title]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  const save = async (item: any) => {
+    try {
+      const method = item.id ? 'PUT' : 'POST';
+      const res = await fetch(apiEndpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...item, adminPassword: adminPw }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Item ${item.id ? 'updated' : 'created'}`);
+      setEditing(null);
+      fetchItems();
+      onRefresh();
+    } catch {
+      toast.error('Save failed');
+    }
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(`Delete ${title} item?`)) return;
+    try {
+      const res = await fetch(`${apiEndpoint}?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword: adminPw }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Deleted');
+      fetchItems();
+      onRefresh();
+    } catch {
+      toast.error('Delete failed');
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-lg mx-auto">
+        <h3 className="text-lg font-bold mb-4">Edit {title}</h3>
+        <div className="space-y-4">
+          <Field label="Name">
+            <input
+              value={editing.name}
+              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Sort Order">
+            <input
+              type="number"
+              value={editing.sort_order}
+              onChange={(e) => setEditing({ ...editing, sort_order: parseInt(e.target.value) || 0 })}
+              className={inputCls}
+            />
+          </Field>
+          <Row
+            title="Active"
+            checked={editing.is_active}
+            onChange={(v) => setEditing({ ...editing, is_active: v })}
+          />
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={() => save(editing)}
+              className="flex-1 bg-[#1A3C35] text-white rounded-xl h-11 font-bold hover:bg-[#2A6655] transition-colors"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditing(null)}
+              className="px-6 h-11 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+        <button
+          onClick={() => setEditing({ name: '', is_active: true, sort_order: items.length })}
+          className="flex items-center gap-2 bg-[#3D9B7D] hover:bg-[#2A6655] text-white rounded-xl px-5 h-11 text-[14px] font-bold transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Add {title}
+        </button>
+      </div>
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-[12px] font-bold text-gray-400 w-6">{item.sort_order}</span>
+                <p className="font-bold text-gray-900">{item.name}</p>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    item.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  {item.is_active ? 'Active' : 'Hidden'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditing(item)}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#3D9B7D] hover:bg-gray-50 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => remove(item.id)}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 const CONTENT_FIELDS: { key: string; label: string; textarea?: boolean }[] = [
   { key: 'hero_banner_url', label: 'Hero Banner Image URL' },
   { key: 'hero_video_url', label: 'Hero Video URL (Direct Link/YouTube)' },
@@ -456,7 +628,7 @@ function ContentTab({
 /* ──────────────────────────────────────────────────────────────────
    Main admin page
 ────────────────────────────────────────────────────────────────── */
-type Tab = 'yachts' | 'inquiries' | 'content' | 'gallery' | 'experiences' | 'seo';
+type Tab = 'yachts' | 'inquiries' | 'content' | 'gallery' | 'experiences' | 'seo' | 'categories' | 'types' | 'occasions';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'inquiries', label: 'Inquiries', icon: <Inbox className="w-4 h-4" /> },
@@ -464,6 +636,9 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'gallery', label: 'Gallery', icon: <ImageIcon className="w-4 h-4" /> },
   { id: 'experiences', label: 'Experiences', icon: <LayoutGrid className="w-4 h-4" /> },
   { id: 'yachts', label: 'Yachts', icon: <Ship className="w-4 h-4" /> },
+  { id: 'categories', label: 'Categories', icon: <LayoutGrid className="w-4 h-4" /> },
+  { id: 'types', label: 'Types', icon: <LayoutGrid className="w-4 h-4" /> },
+  { id: 'occasions', label: 'Occasions', icon: <LayoutGrid className="w-4 h-4" /> },
   { id: 'seo', label: 'SEO Content', icon: <LayoutGrid className="w-4 h-4" /> },
 ];
 
@@ -479,6 +654,11 @@ export default function AdminPage() {
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
+  /* Filter Lists */
+  const [categories, setCategories] = useState<any[]>([]);
+  const [types, setTypes] = useState<any[]>([]);
+  const [occasions, setOccasions] = useState<any[]>([]);
+
   /* UI */
   const [tab, setTab] = useState<Tab>('inquiries');
 
@@ -487,6 +667,7 @@ export default function AdminPage() {
   const [editing, setEditing] = useState<Partial<YachtDB> | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [amenities, setAmenities] = useState<Amenity[]>([]);
+  const [selectedOccasions, setSelectedOccasions] = useState<number[]>([]);
   const [savingYacht, setSavingYacht] = useState(false);
   const { upload, uploading } = useUpload();
 
@@ -590,11 +771,27 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchFilterLists = useCallback(async () => {
+    try {
+      const [catRes, typeRes, occRes] = await Promise.all([
+        fetch('/api/yacht-categories'),
+        fetch('/api/yacht-types'),
+        fetch('/api/yacht-occasions'),
+      ]);
+      setCategories(await catRes.json());
+      setTypes(await typeRes.json());
+      setOccasions(await occRes.json());
+    } catch (e) {
+      console.error('Failed to fetch filter lists', e);
+    }
+  }, []);
+
   useEffect(() => {
     if (!loggedIn) return;
     setLoading(true);
-    Promise.all([fetchYachts(), fetchInquiries(), fetchConfig()]).finally(() => setLoading(false));
-  }, [loggedIn, fetchYachts, fetchInquiries, fetchConfig]);
+    Promise.all([fetchYachts(), fetchInquiries(), fetchConfig(), fetchFilterLists()])
+      .finally(() => setLoading(false));
+  }, [loggedIn, fetchYachts, fetchInquiries, fetchConfig, fetchFilterLists]);
 
   /* ── Yacht editor open ── */
   const openYacht = async (y: YachtDB | null) => {
@@ -606,10 +803,18 @@ export default function AdminPage() {
       setEditing({ ...BLANK_YACHT });
     }
     setAmenities([]);
+    setSelectedOccasions([]);
     if (y) {
       try {
-        const res = await fetch(`/api/yacht-amenities/${y.id}`);
-        if (res.ok) setAmenities(await res.json());
+        const [amenRes, occRes] = await Promise.all([
+          fetch(`/api/yacht-amenities/${y.id}`),
+          fetch(`/api/yacht-occasions-map?yachtId=${y.id}`),
+        ]);
+        if (amenRes.ok) setAmenities(await amenRes.json());
+        if (occRes.ok) {
+          const occs = await occRes.json();
+          setSelectedOccasions(occs.map((o: any) => o.id));
+        }
       } catch {
         /* silent */
       }
@@ -819,7 +1024,6 @@ export default function AdminPage() {
                 <Plus className="w-4 h-4" /> Add Yacht
               </button>
             </div>
-
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
@@ -884,240 +1088,30 @@ export default function AdminPage() {
             )}
           </div>
         )}
-
-        {/* ═══════════ YACHT EDITOR ═══════════ */}
-        {tab === 'yachts' && editing && (
-          <div className="max-w-3xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-gray-900">
-                {isNew ? 'Add New Yacht' : `Edit: ${editing.name}`}
-              </h2>
-              <button
-                onClick={closeYacht}
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                aria-label="Close editor"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-8">
-              {/* Basics */}
-              <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-                <h3 className="text-[13px] font-bold text-gray-900 uppercase tracking-wide">
-                  Basics
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <Field label="Yacht Name">
-                    <input
-                      value={editing.name ?? ''}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                      className={inputCls}
-                      placeholder="Majesty 66"
-                    />
-                  </Field>
-                  <Field label="Type">
-                    <input
-                      value={editing.type ?? ''}
-                      onChange={(e) => setEditing({ ...editing, type: e.target.value })}
-                      className={inputCls}
-                      placeholder="Luxury Yacht"
-                    />
-                  </Field>
-                  <Field label="Max Capacity">
-                    <input
-                      type="number"
-                      value={editing.capacity ?? 0}
-                      onChange={(e) =>
-                        setEditing({ ...editing, capacity: parseInt(e.target.value) || 0 })
-                      }
-                      className={inputCls}
-                    />
-                  </Field>
-                  <Field label="Duration">
-                    <input
-                      value={editing.duration ?? ''}
-                      onChange={(e) => setEditing({ ...editing, duration: e.target.value })}
-                      className={inputCls}
-                      placeholder="1–4 Hours"
-                    />
-                  </Field>
-                </div>
-                <Field label="Description">
-                  <textarea
-                    rows={3}
-                    value={editing.description ?? ''}
-                    onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                    className={inputCls + ' resize-none'}
-                  />
-                </Field>
-                <Field label="Why Choose This Yacht">
-                  <textarea
-                    rows={3}
-                    value={editing.why_choose ?? ''}
-                    onChange={(e) => setEditing({ ...editing, why_choose: e.target.value })}
-                    className={inputCls + ' resize-none'}
-                  />
-                </Field>
-              </section>
-
-              {/* Pricing */}
-              <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-                <h3 className="text-[13px] font-bold text-gray-900 uppercase tracking-wide">
-                  Pricing
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                  <Field label="1 Hour (₹)">
-                    <input
-                      type="number"
-                      value={editing.sailing_price ?? 0}
-                      onChange={(e) =>
-                        setEditing({ ...editing, sailing_price: parseInt(e.target.value) || 0 })
-                      }
-                      className={inputCls}
-                    />
-                  </Field>
-                  <Field label="2 Hours (₹)">
-                    <input
-                      type="number"
-                      value={editing.sailing_price_2hr ?? 0}
-                      onChange={(e) =>
-                        setEditing({ ...editing, sailing_price_2hr: parseInt(e.target.value) || 0 })
-                      }
-                      className={inputCls}
-                    />
-                  </Field>
-                  <Field label="Anchorage (₹)">
-                    <input
-                      type="number"
-                      value={editing.anchorage_price ?? 0}
-                      onChange={(e) =>
-                        setEditing({ ...editing, anchorage_price: parseInt(e.target.value) || 0 })
-                      }
-                      className={inputCls}
-                    />
-                  </Field>
-                </div>
-                <Field
-                  label="Promo Label"
-                  hint="Optional badge, e.g. Best Seller. Leave empty for none."
-                >
-                  <input
-                    value={editing.promo_label ?? ''}
-                    onChange={(e) => setEditing({ ...editing, promo_label: e.target.value })}
-                    className={inputCls}
-                    placeholder="Best Seller"
-                  />
-                </Field>
-              </section>
-
-              {/* Media */}
-              <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-                <h3 className="text-[13px] font-bold text-gray-900 uppercase tracking-wide">
-                  Media
-                </h3>
-                <ImageListEditor
-                  images={editing.images ?? []}
-                  onChange={(v) => setEditing({ ...editing, images: v })}
-                  upload={upload}
-                  uploading={uploading}
-                />
-                <Field label="Reel Video URL" hint="YouTube or direct .mp4 link">
-                  <input
-                    value={editing.reel_url ?? ''}
-                    onChange={(e) => setEditing({ ...editing, reel_url: e.target.value })}
-                    className={inputCls}
-                    placeholder="https://youtube.com/watch?v=…"
-                  />
-                </Field>
-                <Field label="Live Video URL" hint="YouTube or direct .mp4 link">
-                  <input
-                    value={editing.live_video_url ?? ''}
-                    onChange={(e) => setEditing({ ...editing, live_video_url: e.target.value })}
-                    className={inputCls}
-                    placeholder="https://youtube.com/watch?v=…"
-                  />
-                </Field>
-              </section>
-
-              {/* Lists */}
-              <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
-                <h3 className="text-[13px] font-bold text-gray-900 uppercase tracking-wide">
-                  Details
-                </h3>
-                <TagListEditor
-                  label="Inclusions"
-                  items={editing.inclusions ?? []}
-                  onChange={(v) => setEditing({ ...editing, inclusions: v })}
-                  placeholder="e.g. Soft drinks and water"
-                />
-                <TagListEditor
-                  label="Exclusions"
-                  items={editing.exclusions ?? []}
-                  onChange={(v) => setEditing({ ...editing, exclusions: v })}
-                  placeholder="e.g. Alcohol"
-                />
-                <TagListEditor
-                  label="Best For"
-                  items={editing.best_for ?? []}
-                  onChange={(v) => setEditing({ ...editing, best_for: v })}
-                  placeholder="e.g. Birthdays"
-                />
-              </section>
-
-              {/* Amenities */}
-              <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-                <div>
-                  <h3 className="text-[13px] font-bold text-gray-900 uppercase tracking-wide">
-                    Amenity Icons
-                  </h3>
-                  <p className="text-[12px] text-gray-400 mt-1">
-                    Shown as icon chips on the yacht page. Toggle to show or hide each one.
-                  </p>
-                </div>
-                <AmenitiesEditor
-                  yachtId={editing.id ?? ''}
-                  adminPw={adminPw}
-                  amenities={amenities}
-                  setAmenities={setAmenities}
-                />
-              </section>
-
-              {/* Visibility */}
-              <section className="bg-white rounded-2xl border border-gray-200 p-6">
-                <h3 className="text-[13px] font-bold text-gray-900 uppercase tracking-wide mb-2">
-                  Visibility
-                </h3>
-                <Row
-                  title="Show on website"
-                  description="Hidden yachts are not visible to visitors."
-                  checked={editing.is_active ?? true}
-                  onChange={(v) => setEditing({ ...editing, is_active: v })}
-                />
-              </section>
-            </div>
-
-            {/* Single sticky save bar */}
-            <div className="sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 bg-gray-50/95 backdrop-blur border-t border-gray-200 mt-8 flex gap-3">
-              <button
-                onClick={saveYacht}
-                disabled={savingYacht}
-                className="flex-1 flex items-center justify-center gap-2 bg-[#1A3C35] hover:bg-[#2A6655] text-white rounded-xl h-12 text-[14px] font-bold transition-colors disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {savingYacht ? 'Saving…' : isNew ? 'Create Yacht' : 'Save Changes'}
-              </button>
-              <button
-                onClick={closeYacht}
-                className="px-6 h-12 rounded-xl border border-gray-300 text-gray-600 text-[14px] font-semibold hover:bg-gray-100 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+        {tab === 'categories' && (
+          <ListManager
+            title="Yacht Categories"
+            apiEndpoint="/api/yacht-categories"
+            adminPw={adminPw}
+            onRefresh={fetchYachts}
+          />
         )}
-
-        {/* ═══════════ INQUIRIES ═══════════ */}
+        {tab === 'types' && (
+          <ListManager
+            title="Yacht Types"
+            apiEndpoint="/api/yacht-types"
+            adminPw={adminPw}
+            onRefresh={fetchYachts}
+          />
+        )}
+        {tab === 'occasions' && (
+          <ListManager
+            title="Yacht Occasions"
+            apiEndpoint="/api/yacht-occasions"
+            adminPw={adminPw}
+            onRefresh={fetchYachts}
+          />
+        )}
         {tab === 'inquiries' && (
           <div className="space-y-8">
             <div className="flex items-center justify-between mb-6">
@@ -1125,7 +1119,6 @@ export default function AdminPage() {
                 Booking Inquiries ({inquiries.length})
               </h2>
             </div>
-
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
@@ -1139,7 +1132,6 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="space-y-10">
-                {/* Pending Section */}
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                     <span className="w-2 h-2 bg-yellow-400 rounded-full" />
@@ -1217,8 +1209,6 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-
-                {/* Completed Section */}
                 <div className="space-y-2 opacity-60">
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                     <span className="w-2 h-2 bg-gray-300 rounded-full" />
@@ -1253,21 +1243,13 @@ export default function AdminPage() {
             )}
           </div>
         )}
-
-        {/* ═══════════ CONTENT ═══════════ */}
         {tab === 'content' && (
           <ContentTab adminPw={adminPw} siteConfig={config} onSaved={fetchConfig} />
         )}
-
-        {/* ═══════════ SEO CONTENT ═══════════ */}
         {tab === 'seo' && (
           <SEOContentTab adminPw={adminPw} siteConfig={config} onSaved={fetchConfig} />
         )}
-
-        {/* ═══════════ GALLERY ═══════════ */}
         {tab === 'gallery' && <GalleryAdminTab adminPw={adminPw} />}
-
-        {/* ═══════════ EXPERIENCES ═══════════ */}
         {tab === 'experiences' && (
           <ExperiencesAdminTab
             adminPw={adminPw}

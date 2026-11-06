@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Single-color silhouette for Safari pinned tabs: sailboat on waves -->
+  <g fill="#000000">
+    <path d="M268 132 L268 308 L410 308 Q390 196 268 132 Z"/>
+    <path d="M244 142 L244 308 L146 308 Q132 214 244 142 Z"/>
+    <rect x="250" y="104" width="12" height="220" rx="6"/>
+    <path d="M256 96 L316 116 L256 136 Z"/>
+    <path d="M136 322 L404 322 L360 372 Q256 398 178 372 Z"/>
+  </g>
+  <path d="M110 426 Q144 401 178 426 T246 426 T314 426 T382 426" fill="none" stroke="#000000" stroke-width="20" stroke-linecap="round"/>
+  <path d="M168 462 Q191 446 214 462 T260 462 T306 462 T352 462" fill="none" stroke="#000000" stroke-width="17" stroke-linecap="round"/>
+</svg>
