@@ -399,17 +399,10 @@ export default function ContactPage() {
             )}
           </div>
         </div>
-
-        <ReviewSlider googleReviewUrl={cfg.google_url} />
       </div>
 
-      <div className="mt-32 h-[300px] w-full bg-[#F0F4F2] flex items-center justify-center border-y border-[#D0E8DF]">
-        <div className="text-center">
-          <MapPin className="w-12 h-12 text-[#3D9B7D]/40 mx-auto mb-4" />
-          <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">
-            Departure Point: {cfg.address}
-          </p>
-        </div>
+      <div className="mt-24">
+        <ReviewSlider googleReviewUrl={cfg.google_url} />
       </div>
     </div>
   );

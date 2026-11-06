@@ -391,6 +391,7 @@ const CONTENT_FIELDS: { key: string; label: string; textarea?: boolean }[] = [
   { key: 'instagram_url', label: 'Instagram URL' },
   { key: 'facebook_url', label: 'Facebook URL' },
   { key: 'youtube_url', label: 'YouTube URL' },
+  { key: 'google_url', label: 'Google Business URL' },
   { key: 'terms_conditions_content', label: 'Terms & Conditions Content', textarea: true },
   { key: 'privacy_policy_content', label: 'Privacy Policy Content', textarea: true },
   { key: 'cancellation_refund_policy_content', label: 'Cancellation & Refund Policy Content', textarea: true },

@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Shield, Zap, Anchor, Star } from 'lucide-react';
+import { ArrowRight, Shield, Zap, Anchor, Star, Users, CheckCircle2, Award, Sailboat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import YachtCard from '@/components/YachtCard';
 import ExperiencesSection from '@/components/ExperiencesSection';
@@ -140,14 +140,17 @@ export default async function HomePage() {
   let expHeading = 'Every Occasion, Perfectly Crafted';
   let heroBanner = 'https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?q=80&w=2070&auto=format&fit=crop';
   let heroVideo = '';
+  let yachtCount = 6;
 
   try {
-    const [rows, configRows] = await Promise.all([
+    const [rows, configRows, countRows] = await Promise.all([
       sql`SELECT id, name, description, type, capacity, sailing_price, sailing_price_2hr, banner_image, images, promo_label FROM yachts_master WHERE is_active = true ORDER BY sort_order LIMIT 6`,
       sql`SELECT key, value FROM site_config`,
+      sql`SELECT COUNT(*)::int AS count FROM yachts_master WHERE is_active = true`,
     ]);
 
     yachts = rows.map((y) => dbToCard(y as DBYacht));
+    yachtCount = Number((countRows as { count: number | string }[])[0]?.count ?? 0) || rows.length;
 
     const cfg = Object.fromEntries(
       (configRows as { key: string; value: string }[]).map((r) => [r.key, r.value])
@@ -167,7 +170,7 @@ export default async function HomePage() {
   return (
     <div>
       {/* ══ HERO ══════════════════════════════════════════════════════ */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[75vh] md:min-h-screen flex items-center justify-center overflow-hidden">
         {heroVideo ? (
           <video
             autoPlay
@@ -183,7 +186,7 @@ export default async function HomePage() {
           <img
             src={heroBanner}
             alt="Luxury yacht in Goa"
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover object-center"
             loading="eager"
           />
         )}
@@ -230,7 +233,7 @@ export default async function HomePage() {
           </AnimatedSection>
         </div>
         {/* Scroll indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/40 flex flex-col items-center gap-1">
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/40 flex flex-col items-center gap-1">
           <ArrowRight
             className="w-5 h-5 rotate-90"
             style={{ animation: 'bmsBounce 1.5s ease-in-out infinite' }}
@@ -245,18 +248,33 @@ export default async function HomePage() {
       </section>
 
       {/* ══ STATS STRIP ═══════════════════════════════════════════════ */}
-      <div className="bg-[#1A3C35] text-white py-6 px-6">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <div className="bg-gradient-to-b from-[#1A3C35] to-[#14322B] text-white py-8 px-6 border-y border-white/5">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 text-center">
           {[
-            { num: '500+', label: 'Happy Guests' },
-            { num: '6', label: 'Premium Yachts' },
-            { num: '5★', label: 'Rated Experience' },
-            { num: '100%', label: 'Certified & Licensed' },
+            { num: '900+', label: 'Happy Guests', icon: Users, stars: false, certIcon: false },
+            { num: String(yachtCount), label: 'Premium Yachts', icon: Sailboat, stars: false, certIcon: false },
+            { num: '5', label: 'Rated Experience', icon: Star, stars: true, certIcon: false },
+            { num: '', label: 'Certified & Licensed', icon: CheckCircle2, stars: false, certIcon: true },
           ].map((s, i) => (
             <AnimatedSection key={s.label} delay={0.1 * i}>
-              <div className="flex flex-col">
-                <p className="text-2xl font-bold text-[#3D9B7D]">{s.num}</p>
-                <p className="text-white/60 text-[13px] mt-1">{s.label}</p>
+              <div className="flex items-center justify-center gap-3 group">
+                <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center group-hover:bg-[#3D9B7D]/20 transition-colors duration-300 shrink-0">
+                  <s.icon className="w-4 h-4 text-[#3D9B7D]" />
+                </div>
+                {s.certIcon ? (
+                  <Award className="w-7 h-7 md:w-8 md:h-8 text-white" strokeWidth={1.75} />
+                ) : (
+                  <p className="text-xl md:text-2xl font-bold text-white flex items-center gap-1.5">
+                    {s.num}
+                    {s.stars && (
+                      <span className="flex items-center gap-[2px]">
+                        {[...Array(5)].map((_, starIdx) => (
+                          <Star key={starIdx} className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-400 fill-amber-400" />
+                        ))}
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
             </AnimatedSection>
           ))}

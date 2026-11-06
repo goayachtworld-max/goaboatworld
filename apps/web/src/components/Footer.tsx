@@ -65,10 +65,10 @@ const Footer = () => {
     contact_email: 'hello@goaboatworld.com',
     address: 'Panjim, Goa, India',
     business_hours: 'Everyday: 9:00 AM – 8:00 PM',
-    instagram_url: '',
-    facebook_url: '',
-    youtube_url: '',
-    google_url: '',
+    instagram_url: 'https://instagram.com',
+    facebook_url: 'https://facebook.com',
+    youtube_url: 'https://youtube.com',
+    google_url: 'https://google.com',
   });
 
   useEffect(() => {
